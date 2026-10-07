@@ -1,0 +1,40 @@
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+*.iml
+/.idea/
+/.vscode/
+
+# Secrets and local environment. Only the committed examples are allowed.
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# Node and Next.js build output
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+.vercel/
+
+# MapLibre worker copied from node_modules at build time
+apps/*/public/maplibre/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Local evidence and captures that are not meant for the repository
+/scratch/
+*.log
