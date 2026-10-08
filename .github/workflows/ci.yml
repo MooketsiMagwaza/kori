@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [field, landing, review]
+        app: [field, landing, review, api-docs]
     defaults:
       run:
         working-directory: apps/${{ matrix.app }}

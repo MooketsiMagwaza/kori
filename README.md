@@ -21,7 +21,7 @@ register of work, with honest states, is [`docs/WORK_ORDERS.md`](docs/WORK_ORDER
 | --- | --- |
 | **Real (runs in the browser today)** | Logging a sighting into the phone's own storage (IndexedDB), with photos redrawn on the phone to strip their hidden location data; the offline outbox; downloading the sample park pack into the phone and drawing it with MapLibre without any tiles; your GPS position on the map; routing along tracks on the phone; QR codes for a sighting and a scanner that reads them; opt-in trip recording kept on the phone; Day and Night colours. |
 | **Sample data** | Every sighting not logged by you, every observer ("Sample observer 1" and so on), every review, and the reserve itself, which is **fictional**: its tracks are generated and do not match the ground at its coordinates. The "GPS-confirmed" and "predicted" track labels in the sample are sample labels. |
-| **Not built yet** | The API server (so nothing is ever sent; "Send now" says so), real park packs, sharing trips, the track map built from many trips, reviewer sign-in and a shared review store, the API docs, and imagery-based predicted tracks (which depend on a separate feasibility check). |
+| **Not built yet** | The API server (so nothing is ever sent; "Send now" says so), real park packs, sharing trips, the track map built from many trips, reviewer sign-in and a shared review store, and imagery-based predicted tracks (which depend on a separate feasibility check). |
 
 What has been checked, and what has not, is recorded per work order.
 
@@ -42,6 +42,7 @@ Trip recording is opt-in per trip. The full rules are in
 | `apps/field/` | The field app (Next.js 16): home, log, map, sightings, sighting with QR share, scan, offline and packs, trips |
 | `apps/landing/` | The landing site (Next.js 16, static) |
 | `apps/review/` | The review console: queue with checks, approve or reject, species rules, audit log (decisions kept in the browser) |
+| `apps/api-docs/` | The API docs: keys and scopes, rate limits, endpoints, data rules (draft; the API is not built) |
 | `shared/` | Tokens, mark and icons, species, publication rules, the sample reserve, routing, share codes; copied into each app by `node scripts/sync-shared.mjs` |
 | `tests/` | Tests for the shared rules, routing and share codes |
 | `scripts/` | Sync and check scripts, including the name gate |
