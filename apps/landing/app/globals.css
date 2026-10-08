@@ -1,0 +1,586 @@
+@import "../shared/tokens.css";
+
+/* Kori landing site. One long page: a split hero with the app's real map, then sections that
+ * alternate between the sand canvas and a surface band. Phone first. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+h1 {
+  font-size: var(--fs-3xl);
+}
+
+h2 {
+  font-size: clamp(1.9rem, 4.2vw, 2.6rem);
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--c-accent-text);
+  text-underline-offset: 3px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--c-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 12px 16px;
+  background: var(--c-surface);
+  color: var(--c-ink);
+  border-radius: var(--r-md);
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+.faint {
+  color: var(--c-ink-3);
+  font-size: var(--fs-sm);
+}
+
+.wrap {
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 var(--s-4);
+}
+
+@media (min-width: 720px) {
+  .wrap {
+    padding: 0 var(--s-6);
+  }
+}
+
+/* Logo and header */
+.kori-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--c-ink);
+  text-decoration: none;
+  min-height: var(--tap);
+}
+
+.kori-logo svg {
+  color: var(--c-brand);
+}
+
+.kori-logo-word {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.6rem;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--c-bg);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  min-height: 68px;
+}
+
+.site-nav {
+  display: none;
+  gap: var(--s-2);
+}
+
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  color: var(--c-ink-2);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--r-pill);
+}
+
+.site-nav a:hover {
+  background: var(--c-fill);
+  color: var(--c-ink);
+}
+
+@media (min-width: 880px) {
+  .site-nav {
+    display: flex;
+  }
+}
+
+.header-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-pill);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  cursor: pointer;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-pill);
+  border: 2px solid var(--c-line-strong);
+  background: transparent;
+  color: var(--c-ink);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background var(--dur) var(--ease);
+}
+
+.btn:hover {
+  background: var(--c-fill);
+}
+
+.btn-primary {
+  min-height: var(--tap-lg);
+  border-color: var(--c-accent);
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+}
+
+.btn-primary:hover {
+  background: var(--c-accent-hover);
+  border-color: var(--c-accent-hover);
+}
+
+.btn-sm {
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  white-space: nowrap;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+/* Hero */
+.hero {
+  padding: var(--s-6) 0 var(--s-7);
+}
+
+.hero-grid {
+  display: grid;
+  gap: var(--s-6);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .hero {
+    padding: var(--s-7) 0 var(--s-8);
+  }
+
+  .hero-grid {
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: var(--s-7);
+  }
+}
+
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.lead {
+  font-size: var(--fs-md);
+  color: var(--c-ink-2);
+  max-width: 36em;
+}
+
+.sample-note {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+  padding: var(--s-3) var(--s-4);
+  border: 2px dashed var(--c-brand);
+  border-radius: var(--r-lg);
+  background: var(--c-brand-soft);
+  color: var(--c-brand-ink);
+  font-size: var(--fs-sm);
+  max-width: 36em;
+}
+
+.sample-note svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* The phone */
+.phone {
+  justify-self: center;
+  width: min(100%, 340px);
+  padding: 12px;
+  border-radius: 44px;
+  background: var(--c-ink);
+  box-shadow: var(--sh-2);
+}
+
+[data-theme="dark"] .phone {
+  background: #3a3128;
+}
+
+.phone-screen {
+  position: relative;
+  overflow: hidden;
+  border-radius: 32px;
+  aspect-ratio: 360 / 520;
+  background: var(--m-land-2);
+}
+
+.phone-screen .art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.phone-banner {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font-size: 0.82rem;
+  box-shadow: var(--sh-2);
+}
+
+.phone-sheet {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--sh-2);
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.phone-sheet-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.phone-sheet strong {
+  font-size: 1.1rem;
+}
+
+.phone-sheet-note {
+  color: var(--c-ink-3);
+  font-size: 0.8rem;
+}
+
+/* Sections */
+main > section {
+  padding: var(--s-7) 0;
+}
+
+@media (min-width: 900px) {
+  main > section {
+    padding: var(--s-8) 0;
+  }
+}
+
+.band {
+  background: var(--c-surface);
+  border-top: 1px solid var(--c-line);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.section-lead {
+  font-size: var(--fs-md);
+  color: var(--c-ink-2);
+  max-width: 38em;
+  margin-top: var(--s-3);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.two-col {
+  display: grid;
+  gap: var(--s-6);
+  align-items: center;
+}
+
+/* Grid children may shrink below their content (the code sample scrolls inside its own box). */
+.two-col > *,
+.hero-grid > * {
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .two-col {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-7);
+  }
+
+  .two-col.reverse > :first-child {
+    order: 0;
+  }
+}
+
+.rules {
+  margin: 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  color: var(--c-ink-2);
+}
+
+.rules strong {
+  color: var(--c-ink);
+}
+
+.figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.figure .art {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+}
+
+.figure figcaption {
+  color: var(--c-ink-2);
+  font-size: var(--fs-sm);
+}
+
+.key {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  margin: 0 4px 3px 0;
+  vertical-align: middle;
+}
+
+.key-cell {
+  height: 14px;
+  width: 14px;
+  border: 2px solid var(--m-cell);
+  background: color-mix(in srgb, var(--m-cell) 25%, transparent);
+}
+
+.key-sensitive {
+  height: 14px;
+  width: 14px;
+  border: 2px dashed var(--m-cell-sensitive);
+  margin-left: 8px;
+}
+
+.key-route {
+  border-top: 5px solid var(--m-route);
+}
+
+.key-never {
+  border-top: 3px dashed var(--c-bad);
+  margin-left: 8px;
+}
+
+/* Tables */
+.table-wrap {
+  margin-top: var(--s-5);
+  overflow-x: auto;
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  background: var(--c-surface);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--s-4);
+  border-bottom: 1px solid var(--c-line);
+}
+
+tr:last-child th,
+tr:last-child td {
+  border-bottom: 0;
+}
+
+thead th {
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  background: var(--c-fill-2);
+}
+
+.split-table td:first-child {
+  font-weight: 600;
+}
+
+.split-table td + td,
+.split-table th + th {
+  border-left: 1px solid var(--c-line);
+  color: var(--c-ink-2);
+}
+
+.status-table th {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.chip-approved {
+  background: var(--c-good-soft);
+  color: var(--c-good);
+}
+
+.chip-sample {
+  background: var(--c-brand-soft);
+  color: var(--c-brand-ink);
+}
+
+.chip-pending {
+  background: var(--c-warn-soft);
+  color: var(--c-warn);
+}
+
+/* Code */
+.code {
+  margin: 0;
+  padding: var(--s-4);
+  overflow-x: auto;
+  border-radius: var(--r-lg);
+  background: #1b1611;
+  color: #f5eee2;
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+/* Footer */
+.site-footer {
+  padding: var(--s-6) 0;
+  border-top: 1px solid var(--c-line);
+}
+
+.footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--s-4);
+  align-items: flex-end;
+}
+
+/* On the narrowest phones the hero's own button is enough; the header keeps the logo and theme. */
+@media (max-width: 400px) {
+  .header-end .btn-sm {
+    display: none;
+  }
+}
