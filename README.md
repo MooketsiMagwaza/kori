@@ -40,6 +40,7 @@ Trip recording is opt-in per trip. The full rules are in
 | Path | What it is |
 | --- | --- |
 | `apps/field/` | The field app (Next.js 16): home, log, map, sightings, sighting with QR share, scan, offline and packs, trips |
+| `apps/landing/` | The landing site (Next.js 16, static) |
 | `shared/` | Tokens, mark and icons, species, publication rules, the sample reserve, routing, share codes; copied into each app by `node scripts/sync-shared.mjs` |
 | `tests/` | Tests for the shared rules, routing and share codes |
 | `scripts/` | Sync and check scripts, including the name gate |
@@ -55,6 +56,8 @@ npm ci
 npm run dev          # http://localhost:3100
 npm run build        # production build
 ```
+
+The landing site is the same in `apps/landing` (port 3000).
 
 Checks from the repository root:
 
