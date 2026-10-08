@@ -95,7 +95,9 @@ export type Permission = { ok: true } | { ok: false; reason: string };
 function waitReason(input: RuleInput, what: string): string {
   const at = visibleFrom(input);
   const time = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }).format(at);
-  return `${what} opens at ${time}, ${ruleFor(input).delayMinutes >= 1440 ? "7 days" : "1 hour"} after the sighting, so no live location leaves this phone.`;
+  const delay = ruleFor(input).delayMinutes >= 1440 ? "7 days" : "1 hour";
+  const why = what === "Guidance" ? "so nobody is sent to an animal's live location" : "so no live location leaves this phone";
+  return `${what} opens at ${time}, ${delay} after the sighting, ${why}.`;
 }
 
 /** May the app route someone to this sighting? Always along tracks, never to the animal itself. */
