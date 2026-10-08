@@ -4,29 +4,31 @@
  * Day and Night switch on the shared tokens (`[data-theme]` in tokens.css).
  *
  * `THEME_INIT_SCRIPT` runs inline in <head>, before hydration, so the right theme paints first:
- * the stored choice, else the system preference. `ThemeToggle` flips `data-theme` on <html> and
- * stores the choice. Single source in shared/; copied into every app by scripts/sync-shared.mjs.
+ * the stored choice, else the system preference. `ThemeToggle` reads the theme from <html> through
+ * useSyncExternalStore, flips `data-theme` and stores the choice. Single source in shared/; copied
+ * into every app by scripts/sync-shared.mjs.
  */
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "kori-theme";
 
 export const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem('${STORAGE_KEY}');var d=s?s==='dark':matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();`;
 
-function currentTheme(): "light" | "dark" {
-  if (typeof document === "undefined") return "light";
-  return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+function subscribe(callback: () => void) {
+  const observer = new MutationObserver(callback);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  return () => observer.disconnect();
 }
 
+const snapshot = () => (document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
+
 export function ThemeToggle({ withLabel = false }: { withLabel?: boolean }) {
-  // Starts "light" to match the server markup, then reads the real value once mounted.
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  useEffect(() => setTheme(currentTheme()), []);
+  // The server always renders "light"; the browser reads the real value from <html>.
+  const theme = useSyncExternalStore(subscribe, snapshot, () => "light" as const);
 
   function toggle() {
     const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
     if (next === "dark") document.documentElement.setAttribute("data-theme", "dark");
     else document.documentElement.removeAttribute("data-theme");
     try {
