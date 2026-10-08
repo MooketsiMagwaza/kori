@@ -13,7 +13,7 @@ which the assistant cannot use. Every step below is for the owner.
 | ---: | --- | --- | --- | --- |
 | 1 | `kori-field` | `apps/field` | none needed | Ready to deploy |
 | 2 | `kori-landing` | `apps/landing` | `NEXT_PUBLIC_FIELD_APP_URL` = the field app's URL; `NEXT_PUBLIC_API_DOCS_URL` = the API docs URL (once it exists) | Ready to deploy |
-| 3 | `kori-review` | `apps/review` | none needed | When the review console is merged |
+| 3 | `kori-review` | `apps/review` | none needed | Ready to deploy |
 | 4 | `kori-api-docs` | `apps/api-docs` | none needed | When the API docs are merged |
 
 Each app folder has a `vercel.json` that sets the framework (Next.js), the
