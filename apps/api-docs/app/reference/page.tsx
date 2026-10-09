@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { BASE_URL, listSightingsExample, oneSightingExample, sensitiveExample, speciesExample, tracksExample } from "@/lib/examples";
+import { OPENAPI_VERSION, OPERATIONS } from "@/lib/openapi";
 
 export const metadata: Metadata = { title: "Endpoints" };
 
@@ -24,6 +25,36 @@ export default function ReferencePage() {
         Four read-only endpoints under <code>{BASE_URL}</code>. All responses below are built from sample data.
       </p>
 
+      <h2>From the API&apos;s own description</h2>
+      <p className="muted">
+        This table is generated from the OpenAPI document exported by the API (version {OPENAPI_VERSION}). A test in the API fails when the two disagree.
+      </p>
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Operation</th>
+              <th scope="col">Summary</th>
+              <th scope="col">Responses</th>
+            </tr>
+          </thead>
+          <tbody>
+            {OPERATIONS.map((op) => (
+              <tr key={op.operationId}>
+                <td>
+                  <code>
+                    {op.method} {op.path}
+                  </code>
+                </td>
+                <td>{op.summary}</td>
+                <td>{op.responses.join(", ")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Each endpoint, with examples</h2>
       <Endpoint path="/sightings" scope="sightings:read">
         <p>Approved, public sightings, newest first.</p>
         <div className="table-scroll">
