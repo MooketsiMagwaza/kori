@@ -1,0 +1,157 @@
+# Production overlay for a single Docker host. Apply on top of compose.yaml:
+#
+#   docker compose -f compose.yaml -f deploy/compose.release.yaml \
+#     --env-file .env.production --profile identity --profile recovery <command>
+#
+# Images are tagged with an immutable version (KORI_VERSION, normally the git describe output),
+# nothing but Caddy publishes a port, and every secret comes from the environment file; the
+# ${VAR:?message} form refuses to start when one is missing. Requires Docker Compose 2.24+.
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    container_name: kori-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      KORI_DOMAIN: ${KORI_DOMAIN:?set KORI_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@localhost}
+      CADDY_EXTRA_GLOBAL: ${CADDY_EXTRA_GLOBAL:-}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - landing
+      - field
+      - review
+      - api-docs
+
+  db:
+    restart: always
+    ports: !reset []
+
+  api:
+    image: kori/api:${KORI_VERSION:?set KORI_VERSION}
+    restart: always
+    ports: !reset []
+    environment:
+      DEPLOYMENT_ENVIRONMENT: production
+      TOKEN_HASH_SECRET: ${TOKEN_HASH_SECRET:?generate at least 32 random bytes}
+      AUTH_ISSUER: ${AUTH_PUBLIC_URL:?set AUTH_PUBLIC_URL to the public auth URL}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?set AUTH_JWT_SECRET}
+      LOCAL_AUTH_ENABLED: "false"
+      DEMO_ACCOUNT_ENABLED: "false"
+      PASSWORD_RESET_DEBUG: "false"
+      API_DOCS_ENABLED: "false"
+      OTEL_TRACE_SAMPLE_RATIO: "0.1"
+      SANDBOX_API_KEY: ${DOCS_SANDBOX_API_KEY:?set a unique sandbox key}
+      TRUSTED_PROXY_HOPS: "1"
+      CORS_ORIGINS: https://${KORI_DOMAIN},https://app.${KORI_DOMAIN},https://ops.${KORI_DOMAIN},https://docs.${KORI_DOMAIN}
+      DEVELOPER_PORTAL_URL: https://docs.${KORI_DOMAIN}
+      GRAFANA_WEBHOOK_SECRET: ${GRAFANA_WEBHOOK_SECRET:?set GRAFANA_WEBHOOK_SECRET}
+      OBJECT_STORE_PUBLIC_ENDPOINT: ${OBJECT_STORE_PUBLIC_ENDPOINT:-}
+    deploy:
+      resources:
+        limits: { cpus: "1.5", memory: 768M }
+
+  scheduler:
+    image: kori/api:${KORI_VERSION:?set KORI_VERSION}
+    restart: always
+    environment:
+      DEPLOYMENT_ENVIRONMENT: production
+      TOKEN_HASH_SECRET: ${TOKEN_HASH_SECRET:?generate at least 32 random bytes}
+      AUTH_ISSUER: ${AUTH_PUBLIC_URL:?set AUTH_PUBLIC_URL to the public auth URL}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?set AUTH_JWT_SECRET}
+      LOCAL_AUTH_ENABLED: "false"
+      SANDBOX_API_KEY: ${DOCS_SANDBOX_API_KEY:?set a unique sandbox key}
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+  landing:
+    image: kori/landing:${KORI_VERSION:?set KORI_VERSION}
+    restart: always
+    ports: !reset []
+    build:
+      args:
+        NEXT_PUBLIC_SITE_URL: https://${KORI_DOMAIN}
+        NEXT_PUBLIC_FIELD_APP_URL: https://app.${KORI_DOMAIN}
+        NEXT_PUBLIC_API_DOCS_URL: https://docs.${KORI_DOMAIN}
+        NEXT_PUBLIC_OPS_URL: https://ops.${KORI_DOMAIN}
+        NEXT_PUBLIC_API_BASE: https://api.${KORI_DOMAIN}
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 384M }
+
+  field:
+    image: kori/field:${KORI_VERSION:?set KORI_VERSION}
+    restart: always
+    ports: !reset []
+    build:
+      args:
+        NEXT_PUBLIC_API_BASE: https://api.${KORI_DOMAIN}
+        NEXT_PUBLIC_AUTH_URL: ${AUTH_PUBLIC_URL:?set AUTH_PUBLIC_URL}
+        NEXT_PUBLIC_GOOGLE_AUTH: ${GOOGLE_OAUTH_ENABLED:-false}
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 384M }
+
+  review:
+    image: kori/review:${KORI_VERSION:?set KORI_VERSION}
+    restart: always
+    ports: !reset []
+    build:
+      args:
+        NEXT_PUBLIC_API_BASE: https://api.${KORI_DOMAIN}
+        NEXT_PUBLIC_AUTH_URL: ${AUTH_PUBLIC_URL:?set AUTH_PUBLIC_URL}
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 384M }
+
+  api-docs:
+    image: kori/api-docs:${KORI_VERSION:?set KORI_VERSION}
+    restart: always
+    ports: !reset []
+    environment:
+      COOKIE_SECURE: "true"
+      DOCS_SANDBOX_API_KEY: ${DOCS_SANDBOX_API_KEY:?set a unique sandbox key}
+      NEXT_PUBLIC_DEMO_MODE: "false"
+    build:
+      args:
+        NEXT_PUBLIC_API_BASE: https://api.${KORI_DOMAIN}
+        NEXT_PUBLIC_MARKETING_URL: https://${KORI_DOMAIN}
+        NEXT_PUBLIC_DEMO_MODE: "false"
+        NEXT_PUBLIC_AUTH_URL: ${AUTH_PUBLIC_URL:?set AUTH_PUBLIC_URL}
+        NEXT_PUBLIC_GOOGLE_AUTH: ${GOOGLE_OAUTH_ENABLED:-false}
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 384M }
+
+  # Identity, storage, and backups keep their pinned upstream images; only their published
+  # ports are removed so nothing but Caddy is reachable from outside the host.
+  auth:
+    restart: always
+    ports: !reset []
+    environment:
+      GOTRUE_SITE_URL: https://docs.${KORI_DOMAIN}
+      GOTRUE_URI_ALLOW_LIST: https://docs.${KORI_DOMAIN}/**,https://app.${KORI_DOMAIN}/**,https://ops.${KORI_DOMAIN}/**
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:?set SMTP_HOST}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:?set SMTP_PORT}
+
+  mailpit:
+    profiles: ["never"]
+
+  objects:
+    restart: always
+    ports: !reset []
+
+  backup:
+    restart: always
+
+volumes:
+  caddy_data:
+  caddy_config:

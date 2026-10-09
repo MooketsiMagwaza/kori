@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: api }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: api, slot: blue } }
+  template:
+    metadata: { labels: { app: api, slot: blue } }
+    spec:
+      serviceAccountName: kori-runtime
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: api
+          image: ghcr.io/replace-me/kori-api:replace-with-immutable-sha
+          ports: [{ containerPort: 8000 }]
+          envFrom: [{ configMapRef: { name: kori-runtime } }, { secretRef: { name: kori-runtime-secrets } }]
+          resources: { requests: { cpu: 150m, memory: 256Mi }, limits: { cpu: "1", memory: 1Gi } }
+          readinessProbe: { httpGet: { path: /api/health, port: 8000 }, initialDelaySeconds: 8, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /api/health, port: 8000 }, initialDelaySeconds: 20, periodSeconds: 20 }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: api }
+spec: { selector: { app: api, slot: blue }, ports: [{ port: 8000, targetPort: 8000 }] }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: api }
+spec: { minAvailable: 1, selector: { matchLabels: { app: api, slot: blue } } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: api }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: api }
+  minReplicas: 2
+  maxReplicas: 8
+  behavior: { scaleDown: { stabilizationWindowSeconds: 300 } }
+  metrics: [{ type: Resource, resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } } }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: landing }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: landing } }
+  template:
+    metadata: { labels: { app: landing } }
+    spec:
+      serviceAccountName: kori-runtime
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+      containers: [{ name: landing, image: ghcr.io/replace-me/kori-landing:replace-with-immutable-sha, ports: [{ containerPort: 3000 }], resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { cpu: 500m, memory: 512Mi } }, volumeMounts: [{ name: next-cache, mountPath: /app/.next/cache }, { name: tmp, mountPath: /tmp }], securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } } }]
+      volumes: [{ name: next-cache, emptyDir: {} }, { name: tmp, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: landing }
+spec: { selector: { app: landing }, ports: [{ port: 3000, targetPort: 3000 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: field }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: field } }
+  template:
+    metadata: { labels: { app: field } }
+    spec:
+      serviceAccountName: kori-runtime
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+      containers: [{ name: field, image: ghcr.io/replace-me/kori-field:replace-with-immutable-sha, ports: [{ containerPort: 3100 }], resources: { requests: { cpu: 75m, memory: 160Mi }, limits: { cpu: 750m, memory: 768Mi } }, volumeMounts: [{ name: next-cache, mountPath: /app/.next/cache }, { name: tmp, mountPath: /tmp }], securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } } }]
+      volumes: [{ name: next-cache, emptyDir: {} }, { name: tmp, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: field }
+spec: { selector: { app: field }, ports: [{ port: 3100, targetPort: 3100 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: api-docs }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: api-docs } }
+  template:
+    metadata: { labels: { app: api-docs } }
+    spec:
+      serviceAccountName: kori-runtime
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+      containers: [{ name: api-docs, image: ghcr.io/replace-me/kori-api-docs:replace-with-immutable-sha, ports: [{ containerPort: 3400 }], envFrom: [{ secretRef: { name: kori-runtime-secrets } }], resources: { requests: { cpu: 75m, memory: 160Mi }, limits: { cpu: 750m, memory: 768Mi } }, volumeMounts: [{ name: next-cache, mountPath: /app/.next/cache }, { name: tmp, mountPath: /tmp }], securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } } }]
+      volumes: [{ name: next-cache, emptyDir: {} }, { name: tmp, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: api-docs }
+spec: { selector: { app: api-docs }, ports: [{ port: 3400, targetPort: 3400 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: review }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: review } }
+  template:
+    metadata: { labels: { app: review } }
+    spec:
+      serviceAccountName: kori-runtime
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+      containers: [{ name: review, image: ghcr.io/replace-me/kori-review:replace-with-immutable-sha, ports: [{ containerPort: 3300 }], resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { cpu: 500m, memory: 512Mi } }, volumeMounts: [{ name: next-cache, mountPath: /app/.next/cache }, { name: tmp, mountPath: /tmp }], securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } } }]
+      volumes: [{ name: next-cache, emptyDir: {} }, { name: tmp, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: review }
+spec: { selector: { app: review }, ports: [{ port: 3300, targetPort: 3300 }] }

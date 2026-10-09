@@ -38,3 +38,8 @@ __pycache__/
 # Local evidence and captures that are not meant for the repository
 /scratch/
 *.log
+
+# Recovery drill evidence and release records stay local; copy them into the launch record.
+/ops/backups/evidence/*.json
+/deploy/records/
+/deploy/.current-version

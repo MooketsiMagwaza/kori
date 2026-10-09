@@ -1,0 +1,113 @@
+groups:
+  - name: kori-platform
+    rules:
+      - alert: KoriApiDown
+        expr: up{job="kori-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Kori API is unavailable
+          description: Prometheus has been unable to scrape the API for one minute.
+      - alert: KoriApiHighErrorRate
+        expr: |
+          sum(rate(kori_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(kori_http_requests_total[5m])), 0.001) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Kori API error rate is above 5%
+          description: Server errors have exceeded the five-percent threshold for five minutes.
+      - alert: KoriApiSlowP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(kori_http_request_duration_seconds_bucket[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Kori API p95 latency is above one second
+          description: The 95th percentile API latency has remained above one second for five minutes.
+      - alert: KoriAuthenticationFailures
+        expr: sum(rate(kori_auth_failures_total[10m])) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Authentication failures are elevated
+          description: Authentication failures exceed the initial abuse-detection threshold. Check bounded reason labels and request logs.
+      - alert: KoriSecurityBoundaryRejections
+        expr: sum(increase(kori_security_rejections_total[15m])) > 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Security boundary rejections are elevated
+          description: Oversized or unsupported-media requests are arriving repeatedly. Investigate request IDs without logging payloads.
+      - alert: KoriQuotaRejectionsSpike
+        expr: sum(increase(kori_rate_limit_rejections_total[15m])) > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: API quota rejections are elevated
+          description: Quota or invalid-credential limits are rejecting sustained traffic. Confirm whether this is abuse or a customer integration issue.
+      - alert: KoriWalArchiveFailing
+        expr: increase(pg_stat_archiver_failed_count{job="kori-postgres"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: PostgreSQL WAL archiving is failing
+          description: The archive command has failed in the last 15 minutes. Point-in-time recovery has a gap and WAL is accumulating on the primary until archiving recovers.
+      - alert: KoriMaintenanceJobFailed
+        expr: kori_maintenance_last_run_failed == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Maintenance job {{ $labels.job }} failed'
+          description: The latest run of this job failed. Check the scheduler or backup container logs and the MaintenanceRun row.
+      - alert: KoriHourlyJobMissed
+        expr: time() - kori_maintenance_last_success_timestamp_seconds{job=~"cleanup-auth|cleanup-uploads"} > 10800
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Hourly job {{ $labels.job }} has not succeeded for three hours'
+          description: The scheduler may be down or the job is failing.
+      - alert: KoriDailyJobMissed
+        expr: time() - kori_maintenance_last_success_timestamp_seconds{job=~"prune-usage|key-rotation-audit|route-freshness|purge-deleted-accounts|logical-backup|backup-verify|backup-retention"} > 108000
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Daily job {{ $labels.job }} has not succeeded for 30 hours'
+          description: A daily lifecycle or backup job missed its window. For backups this means the newest recovery point is more than a day old.
+      - alert: KoriWeeklyJobMissed
+        expr: time() - kori_maintenance_last_success_timestamp_seconds{job=~"base-backup|cleanup-consent"} > 777600
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Weekly job {{ $labels.job }} has not succeeded for nine days'
+          description: A weekly job missed its window.
+      - alert: KoriSchedulerSilent
+        expr: absent(kori_maintenance_last_success_timestamp_seconds{job="cleanup-auth"})
+        for: 2h
+        labels:
+          severity: critical
+        annotations:
+          summary: The maintenance scheduler has not recorded a single run
+          description: No cleanup-auth run has ever succeeded, or the scheduler container is not running.
+      - alert: KoriDatabaseMetricsDown
+        expr: up{job="kori-postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Database metrics are unavailable
+          description: Prometheus cannot scrape the PostgreSQL exporter, so database, replication, and archive alerts are blind.
+

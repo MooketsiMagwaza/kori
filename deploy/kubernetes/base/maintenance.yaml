@@ -1,0 +1,83 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata: { name: cleanup-auth }
+spec:
+  schedule: "17 * * * *"
+  timeZone: Africa/Gaborone
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 900
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: kori-runtime
+          automountServiceAccountToken: false
+          securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+          containers:
+            - name: job
+              image: ghcr.io/replace-me/kori-api:replace-with-immutable-sha
+              command: [python, -m, app.jobs.maintenance, cleanup-auth]
+              env: [{ name: JOB_RUN_ID, valueFrom: { fieldRef: { fieldPath: metadata.name } } }]
+              envFrom: [{ configMapRef: { name: kori-runtime } }, { secretRef: { name: kori-runtime-secrets } }]
+              resources: { requests: { cpu: 25m, memory: 64Mi }, limits: { cpu: 250m, memory: 256Mi } }
+              securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata: { name: key-rotation-audit }
+spec:
+  schedule: "23 4 * * *"
+  timeZone: Africa/Gaborone
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: kori-runtime
+          automountServiceAccountToken: false
+          securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+          containers:
+            - name: job
+              image: ghcr.io/replace-me/kori-api:replace-with-immutable-sha
+              command: [python, -m, app.jobs.maintenance, key-rotation-audit]
+              env: [{ name: JOB_RUN_ID, valueFrom: { fieldRef: { fieldPath: metadata.name } } }]
+              envFrom: [{ configMapRef: { name: kori-runtime } }, { secretRef: { name: kori-runtime-secrets } }]
+              resources: { requests: { cpu: 25m, memory: 64Mi }, limits: { cpu: 250m, memory: 256Mi } }
+              securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata: { name: prune-usage }
+spec:
+  schedule: "37 3 * * *"
+  timeZone: Africa/Gaborone
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: kori-runtime
+          automountServiceAccountToken: false
+          securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+          containers:
+            - name: job
+              image: ghcr.io/replace-me/kori-api:replace-with-immutable-sha
+              command: [python, -m, app.jobs.maintenance, prune-usage]
+              env: [{ name: JOB_RUN_ID, valueFrom: { fieldRef: { fieldPath: metadata.name } } }]
+              envFrom: [{ configMapRef: { name: kori-runtime } }, { secretRef: { name: kori-runtime-secrets } }]
+              resources: { requests: { cpu: 25m, memory: 64Mi }, limits: { cpu: 250m, memory: 256Mi } }
+              securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
