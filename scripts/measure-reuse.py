@@ -75,7 +75,11 @@ def lines(path: Path) -> list[str]:
 
 
 def main() -> None:
+    if len(sys.argv) != 2:
+        sys.exit("usage: python scripts/measure-reuse.py <source export>")
     source = Path(sys.argv[1]).resolve()
+    if not (source / "api" / "app" / "main.py").is_file():
+        sys.exit(f"{source} does not look like an export of the source repository")
     tracked = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()
     totals: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0])  # kept, adapted or new in copied files, new files
     for path in tracked:
