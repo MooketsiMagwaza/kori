@@ -1,7 +1,7 @@
 # Kori field: built and served by Next.js. The pattern (install from the lock file with a cache
 # mount, build, run as the unprivileged node user, health check over HTTP) follows the owner's
 # earlier web Dockerfiles; see PROVENANCE.md.
-FROM node:24-alpine
+FROM node:25-alpine
 
 WORKDIR /app
 
