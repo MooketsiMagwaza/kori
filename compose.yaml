@@ -1,0 +1,453 @@
+services:
+  db:
+    build:
+      context: ./database
+    container_name: kori-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kori}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kori}
+      POSTGRES_DB: ${POSTGRES_DB:-kori}
+    ports:
+      - "127.0.0.1:5432:5432"
+    # Continuous WAL archiving is always on so point-in-time recovery is possible from day one.
+    # archive_timeout bounds the recovery point objective to five minutes of activity.
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=test ! -f /wal_archive/%f && cp %p /wal_archive/%f
+      - -c
+      - archive_timeout=300
+      - -c
+      - max_wal_senders=5
+      - -c
+      - max_replication_slots=5
+      - -c
+      - hba_file=/etc/postgresql/pg_hba.conf
+    volumes:
+      - kori_db:/var/lib/postgresql/data
+      - wal_archive:/wal_archive
+      - ./ops/recovery/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    healthcheck:
+      # Ask over TCP. Without -h, pg_isready uses the Unix socket, which the temporary server that
+      # runs during first-time initialisation also answers, so the database looked ready and the
+      # API crashed with "connection refused" when that server shut down and the real one started.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-kori} -d ${POSTGRES_DB:-kori}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    image: kori/api:local
+    build:
+      context: ./api
+      additional_contexts:
+        handbook: ./docs
+    container_name: kori-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-kori}:${POSTGRES_PASSWORD:-kori}@db:5432/${POSTGRES_DB:-kori}?connect_timeout=3
+      # Local development only: browsers treat localhost and 127.0.0.1 as different origins, and
+      # a blocked response shows up as a bare "NetworkError" in Firefox.
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3100,http://localhost:3300,http://localhost:3400,http://127.0.0.1:3000,http://127.0.0.1:3100,http://127.0.0.1:3300,http://127.0.0.1:3400
+      DEVELOPER_PORTAL_URL: http://localhost:3400
+      API_DOCS_ENABLED: "false"
+      GRAFANA_WEBHOOK_SECRET: ${GRAFANA_WEBHOOK_SECRET:-local-grafana-webhook}
+      TOKEN_HASH_SECRET: ${TOKEN_HASH_SECRET:-local-development-token-hash-secret-change-me}
+      AUTH_ISSUER: ${AUTH_PUBLIC_URL:-http://localhost:9999}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-local-development-jwt-secret-change-me-32-chars}
+      AUTH_AUDIENCE: authenticated
+      LOCAL_AUTH_ENABLED: ${LOCAL_AUTH_ENABLED:-true}
+      SANDBOX_API_KEY: ${DOCS_SANDBOX_API_KEY:-kori_local_sandbox_key_not_for_production}
+      HANDBOOK_DIR: /app/handbook
+      AUTH_ADMIN_URL: http://auth:9999
+      OBJECT_STORE_ENDPOINT: http://objects:9000
+      OBJECT_STORE_PUBLIC_ENDPOINT: ${OBJECT_STORE_PUBLIC_ENDPOINT:-}
+      OBJECT_STORE_ACCESS_KEY: ${UPLOADS_ACCESS_KEY:-kori-uploads-app}
+      OBJECT_STORE_SECRET_KEY: ${UPLOADS_SECRET_KEY:-local-uploads-secret-key}
+      GRAFANA_PUBLIC_URL: http://localhost:3004
+      PROMETHEUS_PUBLIC_URL: http://localhost:9090
+      PROMETHEUS_INTERNAL_URL: http://prometheus:9090
+      DEPLOYMENT_ENVIRONMENT: local-compose
+      OTEL_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4317
+      OTEL_TRACE_SAMPLE_RATIO: "1.0"
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      # First boot on an empty database runs every migration (and the species seed), which takes longer than
+      # the retries alone allow. Failures inside this window do not count, so `docker compose up`
+      # does not report the API unhealthy (and refuse to start the apps) while it is still setting up.
+      start_period: 180s
+
+  scheduler:
+    image: kori/api:local
+    pull_policy: never
+    container_name: kori-scheduler
+    restart: unless-stopped
+    command: ["python", "-m", "app.jobs.scheduler"]
+    healthcheck:
+      # Healthy while the loop is ticking (it touches this file every 30 seconds).
+      test: ["CMD", "python", "-c", "import os, sys, time; sys.exit(0 if time.time() - os.path.getmtime('/tmp/scheduler-heartbeat') < 120 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-kori}:${POSTGRES_PASSWORD:-kori}@db:5432/${POSTGRES_DB:-kori}?connect_timeout=3
+      TOKEN_HASH_SECRET: ${TOKEN_HASH_SECRET:-local-development-token-hash-secret-change-me}
+      DEPLOYMENT_ENVIRONMENT: local-compose
+      OBJECT_STORE_ENDPOINT: http://objects:9000
+      OBJECT_STORE_PUBLIC_ENDPOINT: ${OBJECT_STORE_PUBLIC_ENDPOINT:-}
+      OBJECT_STORE_ACCESS_KEY: ${UPLOADS_ACCESS_KEY:-kori-uploads-app}
+      OBJECT_STORE_SECRET_KEY: ${UPLOADS_SECRET_KEY:-local-uploads-secret-key}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  field:
+    build:
+      context: ./apps/field
+    container_name: kori-field
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3100:3100"
+
+  landing:
+    build:
+      context: ./apps/landing
+      args:
+        NEXT_PUBLIC_FIELD_APP_URL: http://localhost:3100
+        NEXT_PUBLIC_API_DOCS_URL: http://localhost:3400
+    container_name: kori-landing
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  review:
+    build:
+      context: ./apps/review
+    container_name: kori-review
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3300:3300"
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: kori-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    configs:
+      - source: grafana_alert_password
+        target: /etc/prometheus/grafana-password
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres-exporter:
+        condition: service_started
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1
+    container_name: kori-postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-kori}:${POSTGRES_PASSWORD:-kori}@db:5432/${POSTGRES_DB:-kori}?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    container_name: kori-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: http://localhost:3004
+      GF_USERS_DEFAULT_THEME: dark
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/kori-platform.json
+      GRAFANA_WEBHOOK_SECRET: ${GRAFANA_WEBHOOK_SECRET:-local-grafana-webhook}
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3004:3000"
+    depends_on:
+      - prometheus
+      - tempo
+
+  tempo:
+    image: grafana/tempo:2.8.2
+    container_name: kori-tempo
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./observability/tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
+
+  api-docs:
+    build:
+      context: ./apps/api-docs
+    container_name: kori-api-docs
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3400:3400"
+
+  # ── Identity (opt-in): docker compose --profile identity up -d ───────────────
+  auth-db-init:
+    profiles: ["identity"]
+    image: postgres:16-alpine
+    container_name: kori-auth-db-init
+    restart: "no"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kori}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kori}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-local-auth-db-password}
+    volumes:
+      - ./ops/identity/init-auth-db.sh:/init-auth-db.sh:ro
+    entrypoint: ["sh", "/init-auth-db.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  mailpit:
+    profiles: ["identity"]
+    image: axllent/mailpit:v1.31
+    container_name: kori-mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+
+  auth:
+    profiles: ["identity"]
+    image: supabase/gotrue:v2.197.0
+    container_name: kori-auth
+    restart: unless-stopped
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: "9999"
+      API_EXTERNAL_URL: ${AUTH_PUBLIC_URL:-http://localhost:9999}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${AUTH_DB_PASSWORD:-local-auth-db-password}@db:5432/kori_auth
+      GOTRUE_SITE_URL: http://localhost:3400
+      GOTRUE_URI_ALLOW_LIST: http://localhost:3400/**,http://localhost:3100/**,http://localhost:3300/**
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_SECRET: ${AUTH_JWT_SECRET:-local-development-jwt-secret-change-me-32-chars}
+      GOTRUE_JWT_EXP: "43200"
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ISSUER: ${AUTH_PUBLIC_URL:-http://localhost:9999}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_PASSWORD_MIN_LENGTH: "10"
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:-mailpit}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-1025}
+      GOTRUE_SMTP_USER: ${SMTP_USER:-}
+      GOTRUE_SMTP_PASS: ${SMTP_PASSWORD:-}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_FROM:-no-reply@kori.local}
+      GOTRUE_SMTP_SENDER_NAME: Kori
+      GOTRUE_MFA_TOTP_ENROLL_ENABLED: "true"
+      GOTRUE_MFA_TOTP_VERIFY_ENABLED: "true"
+      GOTRUE_MFA_MAX_ENROLLED_FACTORS: "4"
+      GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: "true"
+      # Google is optional: leave these empty locally; production supplies real OAuth credentials.
+      GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${GOOGLE_OAUTH_ENABLED:-false}
+      GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${AUTH_PUBLIC_URL:-http://localhost:9999}/callback
+    ports:
+      - "127.0.0.1:9999:9999"
+    depends_on:
+      auth-db-init:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+
+  # ── Recovery (opt-in): docker compose --profile recovery up -d ───────────────
+  objects:
+    profiles: ["recovery"]
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: kori-objects
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-kori-objects-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-local-objects-admin-password}
+    volumes:
+      - object_data:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+
+  objects-init:
+    profiles: ["recovery"]
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    container_name: kori-objects-init
+    restart: "no"
+    entrypoint: ["sh", "/objects-init.sh"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-kori-objects-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-local-objects-admin-password}
+      UPLOADS_BUCKET: kori-uploads
+      BACKUPS_BUCKET: kori-backups
+      UPLOADS_ACCESS_KEY: ${UPLOADS_ACCESS_KEY:-kori-uploads-app}
+      UPLOADS_SECRET_KEY: ${UPLOADS_SECRET_KEY:-local-uploads-secret-key}
+      BACKUPS_ACCESS_KEY: ${BACKUPS_ACCESS_KEY:-kori-backups-app}
+      BACKUPS_SECRET_KEY: ${BACKUPS_SECRET_KEY:-local-backups-secret-key}
+    volumes:
+      - ./ops/recovery/objects-init.sh:/objects-init.sh:ro
+    depends_on:
+      - objects
+
+  recovery-init:
+    profiles: ["recovery"]
+    image: postgres:16-alpine
+    container_name: kori-recovery-init
+    restart: "no"
+    entrypoint: ["sh", "/recovery-init.sh"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kori}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kori}
+      POSTGRES_DB: ${POSTGRES_DB:-kori}
+      REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-local-replication-password}
+      BACKUP_DB_PASSWORD: ${BACKUP_DB_PASSWORD:-local-backup-db-password}
+    volumes:
+      - ./ops/recovery/recovery-init.sh:/recovery-init.sh:ro
+    depends_on:
+      api:
+        condition: service_healthy
+
+  db-standby:
+    profiles: ["recovery"]
+    build:
+      context: ./database
+    container_name: kori-db-standby
+    restart: unless-stopped
+    user: root
+    entrypoint: ["/bin/bash", "/standby-entrypoint.sh"]
+    environment:
+      REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-local-replication-password}
+    volumes:
+      - standby_data:/var/lib/postgresql/data
+      - ./ops/recovery/standby-entrypoint.sh:/standby-entrypoint.sh:ro
+    ports:
+      - "127.0.0.1:6001:5432"
+    depends_on:
+      recovery-init:
+        condition: service_completed_successfully
+
+  backup:
+    profiles: ["recovery"]
+    build:
+      context: ./ops/backups
+    container_name: kori-backup
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGDATABASE: ${POSTGRES_DB:-kori}
+      BACKUP_DB_PASSWORD: ${BACKUP_DB_PASSWORD:-local-backup-db-password}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${BACKUP_ENCRYPTION_PASSPHRASE:-local-only-passphrase-replace-in-real-use}
+      OFFSITE_ENDPOINT: http://objects:9000
+      OFFSITE_ACCESS_KEY: ${BACKUPS_ACCESS_KEY:-kori-backups-app}
+      OFFSITE_SECRET_KEY: ${BACKUPS_SECRET_KEY:-local-backups-secret-key}
+      BACKUPS_BUCKET: kori-backups
+      BACKUP_RUN_ON_START: "true"
+    volumes:
+      - backup_data:/backups
+      - wal_archive:/wal_archive
+    depends_on:
+      recovery-init:
+        condition: service_completed_successfully
+      objects-init:
+        condition: service_completed_successfully
+
+  # Drill targets: scratch servers that share no volume with the primary.
+  restore-target:
+    profiles: ["drill"]
+    build:
+      context: ./database
+    container_name: kori-restore-target
+    environment:
+      POSTGRES_PASSWORD: restore-drill
+      POSTGRES_USER: postgres
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  restore-drill:
+    profiles: ["drill"]
+    build:
+      context: ./ops/backups
+    container_name: kori-restore-drill
+    entrypoint: ["/usr/local/bin/restore-drill.sh"]
+    environment:
+      RESTORE_HOST: restore-target
+      RESTORE_PASSWORD: restore-drill
+      BACKUP_ENCRYPTION_PASSPHRASE: ${BACKUP_ENCRYPTION_PASSPHRASE:-local-only-passphrase-replace-in-real-use}
+      OFFSITE_ENDPOINT: http://objects:9000
+      OFFSITE_ACCESS_KEY: ${BACKUPS_ACCESS_KEY:-kori-backups-app}
+      OFFSITE_SECRET_KEY: ${BACKUPS_SECRET_KEY:-local-backups-secret-key}
+      BACKUPS_BUCKET: kori-backups
+    volumes:
+      - ./ops/backups/evidence:/evidence
+    depends_on:
+      restore-target:
+        condition: service_healthy
+
+  pitr-target:
+    profiles: ["drill"]
+    build:
+      context: ./database
+    container_name: kori-pitr-target
+    user: root
+    entrypoint: ["/bin/bash", "/pitr-restore.sh"]
+    environment:
+      RECOVERY_TARGET_TIME: ${RECOVERY_TARGET_TIME:-}
+      BASE_BACKUP_DIR: /backups/base/current
+    volumes:
+      - backup_data:/backups:ro
+      - wal_archive:/wal_archive:ro
+      - ./ops/recovery/pitr-restore.sh:/pitr-restore.sh:ro
+    tmpfs:
+      - /var/lib/postgresql/data
+
+configs:
+  grafana_alert_password:
+    content: ${GRAFANA_ADMIN_PASSWORD:-admin}
+
+volumes:
+  kori_db:
+  wal_archive:
+  backup_data:
+  object_data:
+  standby_data:
+  prometheus_data:
+  grafana_data:
+  tempo_data:

@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kori-runtime
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kori-runtime
+data:
+  DEPLOYMENT_ENVIRONMENT: production
+  API_DOCS_ENABLED: "false"
+  DEMO_ACCOUNT_ENABLED: "false"
+  OTEL_ENABLED: "true"
+  OTEL_SERVICE_NAME: kori-api
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo.observability.svc.cluster.local:4317
+  OTEL_TRACE_SAMPLE_RATIO: "0.10"
+  MAP_MATCH_URL: https://router.project-osrm.org
+  MAP_MATCH_ALLOWED_HOSTS: router.project-osrm.org
+  DEFAULT_HOURLY_API_LIMIT: "100"
+  INVALID_KEY_ATTEMPTS_PER_HOUR: "20"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kori
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 1m
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - secretName: kori-tls
+      hosts: [kori.example, app.kori.example, developers.kori.example, ops.kori.example, api.kori.example]
+  rules:
+    - host: kori.example
+      http: { paths: [{ path: /, pathType: Prefix, backend: { service: { name: landing, port: { number: 3000 } } } }] }
+    - host: app.kori.example
+      http: { paths: [{ path: /, pathType: Prefix, backend: { service: { name: field, port: { number: 3100 } } } }] }
+    - host: developers.kori.example
+      http: { paths: [{ path: /, pathType: Prefix, backend: { service: { name: api-docs, port: { number: 3400 } } } }] }
+    - host: ops.kori.example
+      http: { paths: [{ path: /, pathType: Prefix, backend: { service: { name: review, port: { number: 3300 } } } }] }
+    - host: api.kori.example
+      http: { paths: [{ path: /v1, pathType: Prefix, backend: { service: { name: api, port: { number: 8000 } } } }] }

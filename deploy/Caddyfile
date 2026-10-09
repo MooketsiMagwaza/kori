@@ -1,0 +1,67 @@
+# TLS termination and routing for a single host. Caddy obtains and renews certificates
+# automatically. For a local rehearsal set KORI_DOMAIN=localhost and CADDY_EXTRA_GLOBAL=local_certs.
+{
+	email {$ACME_EMAIL}
+	{$CADDY_EXTRA_GLOBAL}
+}
+
+(secure_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	encode zstd gzip
+}
+
+{$KORI_DOMAIN} {
+	import secure_headers
+	reverse_proxy landing:3000
+}
+
+app.{$KORI_DOMAIN} {
+	import secure_headers
+	reverse_proxy field:3100
+}
+
+docs.{$KORI_DOMAIN} {
+	import secure_headers
+	reverse_proxy api-docs:3400
+}
+
+ops.{$KORI_DOMAIN} {
+	import secure_headers
+	reverse_proxy review:3300
+}
+
+api.{$KORI_DOMAIN} {
+	import secure_headers
+	# Metrics and the alert webhook are for the private network only. Everything else is
+	# authenticated by the API itself (API key, session, admin role and MFA), never by the edge.
+	@private path /metrics /metrics/* /api/admin/observability/*
+	respond @private 404
+	request_body {
+		max_size 1MB
+	}
+	reverse_proxy api:8000 {
+		health_uri /api/health
+		health_interval 15s
+	}
+}
+
+auth.{$KORI_DOMAIN} {
+	import secure_headers
+	# Self-hosted Supabase Auth (GoTrue): sign-in, recovery, Google callback, and MFA.
+	reverse_proxy auth:9999
+}
+
+objects.{$KORI_DOMAIN} {
+	import secure_headers
+	# Presigned upload and download URLs point here. The signature covers this hostname, so the
+	# Host header must reach the object store unchanged (Caddy preserves it).
+	request_body {
+		max_size 6MB
+	}
+	reverse_proxy objects:9000
+}
