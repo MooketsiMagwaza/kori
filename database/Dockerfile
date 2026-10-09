@@ -1,4 +1,4 @@
-FROM postgis/postgis:16-3.4
+FROM postgis/postgis:17-3.5
 
 # Continuous WAL archive lives on its own volume so point-in-time recovery survives data-dir loss.
 RUN mkdir -p /wal_archive && chown postgres:postgres /wal_archive && chmod 700 /wal_archive
