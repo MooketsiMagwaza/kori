@@ -39,6 +39,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: npm audit (high and critical)
+      # Runtime dependencies must be clean. Development tooling is reported but does not fail the
+      # job: on 9 October 2026 the only finding there was braces (GHSA-vfj7-8cjw-p6xm), reached
+      # through eslint-config-next, with no patched release published.
+      - name: npm audit, runtime dependencies (fails on high and critical)
         shell: bash
+        run: for app in field landing review api-docs; do (cd "apps/$app" && npm audit --omit=dev --audit-level=high); done
+      - name: npm audit, development tooling (report only)
+        shell: bash
+        continue-on-error: true
         run: for app in field landing review api-docs; do (cd "apps/$app" && npm audit --audit-level=high); done
