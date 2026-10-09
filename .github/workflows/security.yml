@@ -1,0 +1,51 @@
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "19 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# CodeQL and SARIF upload need GitHub Advanced Security on a private repository, so this workflow
+# keeps to scans that run anywhere. Pattern from the owner's earlier platform (see PROVENANCE.md).
+jobs:
+  secrets-and-config:
+    name: Secrets and misconfiguration (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret,misconfig
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+
+  dependencies:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit && pip-audit api
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # Runtime dependencies must be clean. Development tooling is reported but does not fail the
+      # job: on 9 October 2026 the only finding there was braces (GHSA-vfj7-8cjw-p6xm), reached
+      # through eslint-config-next, with no patched release published.
+      - name: npm audit, runtime dependencies (fails on high and critical)
+        shell: bash
+        run: for app in field landing review api-docs; do (cd "apps/$app" && npm audit --omit=dev --audit-level=high); done
+      - name: npm audit, development tooling (report only)
+        shell: bash
+        continue-on-error: true
+        run: for app in field landing review api-docs; do (cd "apps/$app" && npm audit --audit-level=high); done

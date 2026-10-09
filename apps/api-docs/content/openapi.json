@@ -1,0 +1,438 @@
+{
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "PublicSightingRead": {
+        "description": "What anyone else may see: an area, a quarter-hour time, no point, no observer.",
+        "properties": {
+          "area": {
+            "$ref": "#/components/schemas/AreaRead"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "seen_at": {
+            "format": "date-time",
+            "title": "Seen At",
+            "type": "string"
+          },
+          "sensitive": {
+            "title": "Sensitive",
+            "type": "boolean"
+          },
+          "species": {
+            "title": "Species",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "species",
+          "count",
+          "seen_at",
+          "area",
+          "sensitive"
+        ],
+        "title": "PublicSightingRead",
+        "type": "object"
+      },
+      "SpeciesRead": {
+        "properties": {
+          "area_m": {
+            "title": "Area M",
+            "type": "integer"
+          },
+          "common_name": {
+            "title": "Common Name",
+            "type": "string"
+          },
+          "delay_minutes": {
+            "title": "Delay Minutes",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "scientific_name": {
+            "title": "Scientific Name",
+            "type": "string"
+          },
+          "setswana_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Setswana Name"
+          },
+          "tier": {
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "common_name",
+          "setswana_name",
+          "scientific_name",
+          "tier",
+          "area_m",
+          "delay_minutes"
+        ],
+        "title": "SpeciesRead",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Kori's keyed public API (draft; not deployed).",
+    "title": "Kori API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/sightings": {
+      "get": {
+        "operationId": "v1ListSightings",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "area",
+            "required": true,
+            "schema": {
+              "maxLength": 60,
+              "title": "Area",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "species",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 400,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Species"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PublicSightingRead"
+                  },
+                  "title": "Response V1Listsightings",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Missing, invalid, expired, or revoked API key."
+          },
+          "403": {
+            "description": "The API key lacks the required scope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Hourly limit, monthly quota, or invalid-credential limit exceeded."
+          }
+        },
+        "summary": "List approved, public sightings as areas",
+        "tags": [
+          "Public API v1"
+        ]
+      }
+    },
+    "/v1/sightings/{public_id}": {
+      "get": {
+        "operationId": "v1GetSighting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Public Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSightingRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Missing, invalid, expired, or revoked API key."
+          },
+          "403": {
+            "description": "The API key lacks the required scope."
+          },
+          "404": {
+            "description": "No such public sighting."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Hourly limit, monthly quota, or invalid-credential limit exceeded."
+          }
+        },
+        "summary": "One public sighting",
+        "tags": [
+          "Public API v1"
+        ]
+      }
+    },
+    "/v1/species": {
+      "get": {
+        "operationId": "v1ListSpecies",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SpeciesRead"
+                  },
+                  "title": "Response V1Listspecies",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Missing, invalid, expired, or revoked API key."
+          },
+          "403": {
+            "description": "The API key lacks the required scope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Hourly limit, monthly quota, or invalid-credential limit exceeded."
+          }
+        },
+        "summary": "Species and their publication rules",
+        "tags": [
+          "Public API v1"
+        ]
+      }
+    },
+    "/v1/tracks": {
+      "get": {
+        "description": "Reviewed tracks, and GPS-confirmed ones with enough trips. Never predicted or closed.",
+        "operationId": "v1ListTracks",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "area",
+            "required": true,
+            "schema": {
+              "maxLength": 60,
+              "title": "Area",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response V1Listtracks",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Missing, invalid, expired, or revoked API key."
+          },
+          "403": {
+            "description": "The API key lacks the required scope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Hourly limit, monthly quota, or invalid-credential limit exceeded."
+          }
+        },
+        "summary": "The aggregated track map for an area (GeoJSON, ODbL)",
+        "tags": [
+          "Public API v1"
+        ]
+      }
+    }
+  }
+}
