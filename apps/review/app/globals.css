@@ -1243,6 +1243,11 @@ textarea {
   display: inline-flex;
 }
 
+.place-marker.name-hidden .place-name,
+.map-zoomed .place-camp.name-hidden .place-name {
+  display: none;
+}
+
 /* Sighting dots. The marker is a 40px tap area with a small dot in the middle; the dot marks the
    middle of the published area, never the animal. Sensitive species are a dashed ring. */
 .pin-wrap {
@@ -1358,9 +1363,9 @@ textarea {
   background: var(--c-surface-solid);
 }
 
-/* MapLibre's own controls, on the same glass */
-.maplibregl-ctrl-attrib.maplibregl-compact,
-.maplibregl-ctrl-attrib {
+/* MapLibre's own controls, on the same glass. MapLibre's stylesheet loads after this one, so these
+   are scoped to the map to outrank it. */
+.map-canvas .maplibregl-ctrl.maplibregl-ctrl-attrib {
   border-radius: var(--r-pill);
   background: var(--c-glass);
   -webkit-backdrop-filter: var(--glass-blur);
@@ -1370,31 +1375,31 @@ textarea {
   font-size: 11px;
 }
 
-.maplibregl-ctrl-attrib a {
+.map-canvas .maplibregl-ctrl-attrib a {
   color: var(--c-ink-2);
 }
 
-.maplibregl-ctrl-attrib.maplibregl-compact-show {
-  padding: 2px 30px 2px 12px;
+.map-canvas .maplibregl-ctrl-attrib.maplibregl-compact {
+  min-height: 28px;
 }
 
-[data-theme="dark"] .maplibregl-ctrl-attrib-button {
+[data-theme="dark"] .map-canvas .maplibregl-ctrl-attrib-button {
   filter: invert(1);
 }
 
-.maplibregl-ctrl-scale {
+.map-canvas .maplibregl-ctrl.maplibregl-ctrl-scale {
   border-color: var(--c-ink-2);
   background: var(--c-glass);
   color: var(--c-ink);
   font-size: 11px;
 }
 
-.maplibregl-ctrl-bottom-left,
-.maplibregl-ctrl-bottom-right {
+.map-canvas .maplibregl-ctrl-bottom-left,
+.map-canvas .maplibregl-ctrl-bottom-right {
   margin-bottom: var(--map-bottom);
 }
 
-.maplibregl-ctrl-bottom-left {
+.map-canvas .maplibregl-ctrl-bottom-left {
   margin-left: var(--s-1);
 }
 

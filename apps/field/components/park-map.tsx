@@ -18,7 +18,7 @@ import { AttributionControl, LngLatBounds, Map as MapLibreMap, Marker, ScaleCont
 import type { LonLat } from "@/shared/geo";
 import { distanceMeters, distanceToPolylineMeters, formatDistance, metersToDegrees } from "@/shared/geo";
 import { CELL_LAYER_IDS, MAP_LAYERS, MAP_SOURCES, colourBindings, resolveLayer } from "@/shared/map-style";
-import { groupPins, placeLabels, type Pin } from "@/shared/map-markers";
+import { circleBox, groupPins, labelBox, overlaps, placeLabels, type Pin } from "@/shared/map-markers";
 import { reserveGeoJSON, isInsideReserve, SAMPLE_RESERVE_ID, type Reserve } from "@/shared/reserve";
 import { routeAlongTracks, type RouteResult } from "@/shared/routing";
 import { canGuide, cellRing, isPublic, sensitivityOf } from "@/shared/rules";
@@ -64,11 +64,32 @@ const LABEL_ZOOM = 11.5;
 const PLACE_LABEL_ZOOM = 11;
 const NEARBY_METERS = 3_000;
 
+// Frame the whole reserve in the clear space between the notices at the top and the dock at the
+// bottom (the map runs under the dock on phones), so it is not left low on the screen.
+function framePadding(map: MapLibreMap, top: HTMLElement | null) {
+  const side = 32;
+  const height = map.getContainer().clientHeight;
+  return {
+    top: Math.min((top?.offsetHeight ?? 0) + 28, height * 0.4),
+    bottom: window.innerWidth >= 960 ? side : Math.min(132, height * 0.25),
+    left: side,
+    right: side,
+  };
+}
+
+// The part of the map no panel covers: below the notices, left of the map buttons, above the dock.
+function clearArea(map: MapLibreMap, top: HTMLElement | null) {
+  const { clientWidth: width, clientHeight: height } = map.getContainer();
+  const bottom = window.innerWidth >= 960 ? 16 : 112;
+  return { left: 0, top: (top?.offsetHeight ?? 0) + 16, right: width - 84, bottom: height - bottom };
+}
+
 type Props = { to: string | null };
 
 export default function ParkMap({ to }: Props) {
   const container = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+  const topRef = useRef<HTMLDivElement | null>(null);
   const meMarker = useRef<Marker | null>(null);
   const placeMarkers = useRef<Marker[]>([]);
   const [ready, setReady] = useState(false);
@@ -127,15 +148,17 @@ export default function ParkMap({ to }: Props) {
   // The sighting nearest you (inside the reserve, within a few km) is the one that gets a name by default.
   const fixLon = geo.fix?.lon ?? null;
   const fixLat = geo.fix?.lat ?? null;
-  const nearbyId = useMemo(() => {
-    if (fixLon === null || fixLat === null || !inside) return null;
-    let best: { id: string; distance: number } | null = null;
+  let nearbyId: string | null = null;
+  if (fixLon !== null && fixLat !== null && inside) {
+    let nearest = NEARBY_METERS;
     for (const s of visibleSightings) {
       const distance = distanceMeters([fixLon, fixLat], s.cell.centre);
-      if (distance <= NEARBY_METERS && (!best || distance < best.distance)) best = { id: s.id, distance };
+      if (distance <= nearest) {
+        nearest = distance;
+        nearbyId = s.id;
+      }
     }
-    return best?.id ?? null;
-  }, [fixLon, fixLat, inside, visibleSightings]);
+  }
 
   const offRoute = route && fix && inside ? distanceToPolylineMeters(fix, route.line) : null;
   const offRouteLimit = Math.max(150, (geo.fix?.accuracy ?? 0) * 1.5);
@@ -195,7 +218,7 @@ export default function ParkMap({ to }: Props) {
     set("pans", layers.pans);
     set("river", layers.river);
     set("tracks", layers.tracks);
-    if (!to) map.fitBounds(reserve.bounds, { padding: 40, duration: 0 });
+    if (!to) map.fitBounds(reserve.bounds, { padding: framePadding(map, topRef.current), duration: 0 });
 
     placeMarkers.current.forEach((m) => m.remove());
     placeMarkers.current = reserve.nodes
@@ -257,9 +280,21 @@ export default function ParkMap({ to }: Props) {
     const labels = placeLabels(pins, {
       required: [...standalone],
       optional: map.getZoom() >= LABEL_ZOOM,
-      viewportWidth: map.getContainer().clientWidth,
+      area: clearArea(map, topRef.current),
       obstacles: grouped.clusters.map((c) => ({ x: c.x, y: c.y, radius: 24 })),
     });
+
+    // A camp's name steps aside when it would sit under a pin's name, a dot or a cluster.
+    const taken = [
+      ...pins.flatMap((pin) => [circleBox(pin.x, pin.y, 16), ...(labels.has(pin.id) ? [labelBox(pin, labels.get(pin.id)!)] : [])]),
+      ...grouped.clusters.map((c) => circleBox(c.x, c.y, 24)),
+    ];
+    for (const marker of placeMarkers.current) {
+      const at = map.project(marker.getLngLat());
+      const text = marker.getElement().textContent ?? "";
+      const name = { left: at.x + 14, right: at.x + 14 + text.length * 7.4 + 24, top: at.y - 15, bottom: at.y + 15 };
+      marker.getElement().classList.toggle("name-hidden", taken.some((box) => overlaps(name, box, 2)));
+    }
 
     for (const pin of pins) {
       const s = byId.get(pin.id);
@@ -382,7 +417,7 @@ export default function ParkMap({ to }: Props) {
         <div ref={container} style={{ width: "100%", height: "100%" }} role="region" aria-label="Park map" />
       </div>
 
-      <div className="map-top">
+      <div className="map-top" ref={topRef}>
         {data && !reserve ? (
           <div className="map-banner">
             <Icon name="download" size={20} />
@@ -428,7 +463,7 @@ export default function ParkMap({ to }: Props) {
           <Icon name="layers" size={26} />
         </button>
         {reserve ? (
-          <button type="button" className="icon-btn" onClick={() => mapRef.current?.fitBounds(reserve.bounds, { padding: 40, duration: 400 })} aria-label="Show the whole reserve">
+          <button type="button" className="icon-btn" onClick={() => mapRef.current && mapRef.current.fitBounds(reserve.bounds, { padding: framePadding(mapRef.current, topRef.current), duration: 400 })} aria-label="Show the whole reserve">
             <Icon name="map" size={26} />
           </button>
         ) : null}

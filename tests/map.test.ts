@@ -4,9 +4,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { groupPins, placeLabels, type Pin } from "../shared/map-markers.ts";
+import { groupPins, labelBox, overlaps, placeLabels, type Pin } from "../shared/map-markers.ts";
 import { CELL_LAYER_IDS, MAP_LAYERS, colourBindings, resolveLayer } from "../shared/map-style.ts";
 
+const AREA = { left: 0, top: 0, right: 390, bottom: 800 };
 const pin = (id: string, x: number, y: number, name = "Giraffe"): Pin => ({ id, x, y, sensitive: false, name });
 
 test("pins that would touch merge into one numbered cluster, and far ones stay pins", () => {
@@ -32,26 +33,40 @@ test("a single pin is never wrapped in a cluster of one", () => {
 
 test("zoomed out, only the required pins are named", () => {
   const pins = [pin("a", 50, 50), pin("b", 200, 200), pin("c", 120, 300)];
-  const labels = placeLabels(pins, { required: ["b"], optional: false, viewportWidth: 390 });
+  const labels = placeLabels(pins, { required: ["b"], optional: false, area: AREA });
   assert.deepEqual([...labels.keys()], ["b"]);
 });
 
 test("the selected pin is named even when its label would cover another pin", () => {
   const pins = [pin("a", 100, 100, "Elephant"), pin("b", 150, 100, "Zebra")];
-  const labels = placeLabels(pins, { required: ["a"], optional: true, viewportWidth: 390 });
+  const labels = placeLabels(pins, { required: ["a"], optional: true, area: AREA });
   assert.ok(labels.has("a"));
   assert.ok(!labels.has("b"), "b's label would run into a's label and pin");
 });
 
 test("zoomed in, labels that fit are named and ones that would overlap are skipped", () => {
   const pins = [pin("a", 60, 100, "Lion"), pin("b", 70, 112, "Leopard"), pin("c", 60, 400, "Kudu")];
-  const labels = placeLabels(pins, { required: [], optional: true, viewportWidth: 390 });
+  const labels = placeLabels(pins, { required: [], optional: true, area: AREA });
   assert.ok(labels.has("c"));
   assert.equal([...labels.keys()].filter((id) => id === "a" || id === "b").length, 1, "only one of two overlapping labels is drawn");
 });
 
+test("pins outside the clear area are not named, and the ones nearest the middle of it come first", () => {
+  const pins = [pin("off", -200, 100, "Hippo"), pin("below", 100, 1500, "Eland"), pin("edge", 40, 40, "Impala"), pin("middle", 195, 400, "Kudu")];
+  const labels = placeLabels(pins, { required: [], optional: true, area: AREA, max: 1 });
+  assert.deepEqual([...labels.keys()], ["middle"]);
+});
+
+test("a pin under the buttons on the right is not named, and one just inside flips its label left", () => {
+  const area = { left: 0, top: 100, right: 300, bottom: 700 };
+  const pins = [pin("under", 340, 400, "Lion"), pin("inside", 270, 300, "Wild dog")];
+  const labels = placeLabels(pins, { required: [], optional: true, area });
+  assert.ok(!labels.has("under"));
+  assert.equal(labels.get("inside"), "left");
+});
+
 test("a label near the right edge flips to the left of its pin", () => {
-  const labels = placeLabels([pin("edge", 360, 200, "Spotted hyena")], { required: ["edge"], optional: false, viewportWidth: 390 });
+  const labels = placeLabels([pin("edge", 360, 200, "Spotted hyena")], { required: ["edge"], optional: false, area: AREA });
   assert.equal(labels.get("edge"), "left");
 });
 
@@ -74,4 +89,12 @@ test("resolving a layer reads each colour from its token", () => {
 
 test("the sighting area layers can be switched together, and sensitive areas have their own", () => {
   assert.deepEqual(CELL_LAYER_IDS.sort(), ["cells-fill", "cells-line", "cells-sensitive-fill", "cells-sensitive-line"]);
+});
+
+test("a label box sits beside its pin, on the side it was given", () => {
+  const right = labelBox(pin("a", 100, 100, "Lion"), "right");
+  const left = labelBox(pin("a", 100, 100, "Lion"), "left");
+  assert.ok(right.left > 100 && left.right < 100);
+  assert.ok(overlaps(right, { left: right.left + 5, right: right.right + 5, top: right.top, bottom: right.bottom }));
+  assert.ok(!overlaps(right, left, 0));
 });

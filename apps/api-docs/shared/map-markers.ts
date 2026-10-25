@@ -53,35 +53,48 @@ export type LabelOptions = {
   required: string[];
   /** Whether other pins may get a label at all (false when zoomed out). */
   optional: boolean;
-  /** Width of the map in pixels, so a label near the right edge flips to the left of its pin. */
-  viewportWidth: number;
+  /**
+   * The clear part of the map in pixels: the canvas less whatever floats over it (the notice at the
+   * top, the buttons on the right, the dock below). A label that would run past its right edge flips
+   * to the left of its pin, and pins outside it are not named.
+   */
+  area: { left: number; top: number; right: number; bottom: number };
   /** Every other marker on screen (clusters, place markers), which a label must not cover. */
   obstacles?: { x: number; y: number; radius: number }[];
   /** Radius of a pin's tap area. */
   pinRadius?: number;
-  /** Distance from the pin's centre to the start of its label. */
-  offset?: number;
-  height?: number;
-  /** Estimated label width for a name. */
-  width?: (name: string) => number;
   /** The most optional labels to draw at once. */
   max?: number;
 };
 
 export type Placement = "right" | "left";
 
-type Box = { left: number; top: number; right: number; bottom: number };
+export type Box = { left: number; top: number; right: number; bottom: number };
 
-const overlaps = (a: Box, b: Box, gap = 4) => a.left < b.right + gap && a.right > b.left - gap && a.top < b.bottom + gap && a.bottom > b.top - gap;
-const circleBox = (x: number, y: number, r: number): Box => ({ left: x - r, right: x + r, top: y - r, bottom: y + r });
+export const overlaps = (a: Box, b: Box, gap = 4) => a.left < b.right + gap && a.right > b.left - gap && a.top < b.bottom + gap && a.bottom > b.top - gap;
+export const circleBox = (x: number, y: number, r: number): Box => ({ left: x - r, right: x + r, top: y - r, bottom: y + r });
+
+const LABEL_OFFSET = 12;
+const LABEL_HEIGHT = 36;
+const labelWidth = (name: string) => Math.ceil(name.length * 7.6) + 30;
+
+/** The screen box a pin's name takes on the given side of it. */
+export function labelBox(pin: Pin, side: Placement): Box {
+  const w = labelWidth(pin.name);
+  return side === "right"
+    ? { left: pin.x + LABEL_OFFSET, right: pin.x + LABEL_OFFSET + w, top: pin.y - LABEL_HEIGHT / 2, bottom: pin.y + LABEL_HEIGHT / 2 }
+    : { left: pin.x - LABEL_OFFSET - w, right: pin.x - LABEL_OFFSET, top: pin.y - LABEL_HEIGHT / 2, bottom: pin.y + LABEL_HEIGHT / 2 };
+}
 
 /**
- * Decides which pins get a name and on which side. Required pins come first, then the rest from
- * the one nearest the middle of the map outwards; an optional label is skipped when it would
+ * Decides which pins get a name and on which side. Required pins come first, then the pins in the
+ * clear area, from the middle of it outwards; an optional label is skipped when it would
  * overlap a label already placed or any marker.
  */
 export function placeLabels(pins: Pin[], options: LabelOptions): Map<string, Placement> {
-  const { required, optional, viewportWidth, obstacles = [], pinRadius = 20, offset = 12, height = 36, width = (name: string) => Math.ceil(name.length * 7.6) + 30, max = 8 } = options;
+  const { required, optional, area, obstacles = [], pinRadius = 20, max = 8 } = options;
+  const offset = LABEL_OFFSET;
+  const width = labelWidth;
   const placed = new Map<string, Placement>();
   const boxes: Box[] = [];
   // Every marker a label must not cover. A pin's own tap area does not count against its label.
@@ -90,13 +103,8 @@ export function placeLabels(pins: Pin[], options: LabelOptions): Map<string, Pla
     ...obstacles.map((o) => ({ owner: null, box: circleBox(o.x, o.y, o.radius) })),
   ];
 
-  const boxFor = (pin: Pin, side: Placement): Box => {
-    const w = width(pin.name);
-    return side === "right"
-      ? { left: pin.x + offset, right: pin.x + offset + w, top: pin.y - height / 2, bottom: pin.y + height / 2 }
-      : { left: pin.x - offset - w, right: pin.x - offset, top: pin.y - height / 2, bottom: pin.y + height / 2 };
-  };
-  const sideFor = (pin: Pin): Placement => (pin.x + offset + width(pin.name) > viewportWidth - 8 && pin.x - offset - width(pin.name) > 8 ? "left" : "right");
+  const boxFor = labelBox;
+  const sideFor = (pin: Pin): Placement => (pin.x + offset + width(pin.name) > area.right - 8 && pin.x - offset - width(pin.name) > area.left + 8 ? "left" : "right");
 
   for (const id of required) {
     const pin = pins.find((p) => p.id === id);
@@ -107,8 +115,9 @@ export function placeLabels(pins: Pin[], options: LabelOptions): Map<string, Pla
   }
   if (!optional) return placed;
 
-  const middle = pins.length ? { x: pins.reduce((s, p) => s + p.x, 0) / pins.length, y: pins.reduce((s, p) => s + p.y, 0) / pins.length } : { x: 0, y: 0 };
-  const rest = pins.filter((pin) => !placed.has(pin.id)).sort((a, b) => Math.hypot(a.x - middle.x, a.y - middle.y) - Math.hypot(b.x - middle.x, b.y - middle.y) || a.id.localeCompare(b.id));
+  const middle = { x: (area.left + area.right) / 2, y: (area.top + area.bottom) / 2 };
+  const inArea = (pin: Pin) => pin.x >= area.left && pin.x <= area.right && pin.y >= area.top && pin.y <= area.bottom;
+  const rest = pins.filter((pin) => !placed.has(pin.id) && inArea(pin)).sort((a, b) => Math.hypot(a.x - middle.x, a.y - middle.y) - Math.hypot(b.x - middle.x, b.y - middle.y) || a.id.localeCompare(b.id));
   let extra = 0;
   for (const pin of rest) {
     if (extra >= max) break;
