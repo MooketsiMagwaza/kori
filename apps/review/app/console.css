@@ -34,6 +34,24 @@
   }
 }
 
+/* On a phone: the name and the theme switch on one row, the nav scrolls on its own row below */
+@media (max-width: 719px) {
+  .console-bar {
+    padding-left: var(--s-4);
+  }
+
+  .console-bar > .theme-toggle {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .console-nav {
+    order: 3;
+    flex: 1 0 100%;
+    margin-right: 0;
+  }
+}
+
 .console-tag {
   padding: 3px 12px;
   border-radius: var(--r-pill);

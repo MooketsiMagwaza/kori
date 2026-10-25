@@ -1403,6 +1403,26 @@ textarea {
   margin-left: var(--s-1);
 }
 
+/* The notice at the bottom left never runs under the map buttons on the right */
+.map-canvas .maplibregl-ctrl-bottom-left {
+  max-width: calc(100% - 92px);
+}
+
+.map-canvas .maplibregl-ctrl-attrib-inner {
+  white-space: normal;
+}
+
+@media (max-width: 359px) {
+  .map-controls {
+    right: var(--s-2);
+  }
+
+  .map-controls .icon-btn {
+    width: var(--tap);
+    height: var(--tap);
+  }
+}
+
 /* Cell thumbnail */
 .thumb {
   display: block;
