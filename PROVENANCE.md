@@ -13,6 +13,10 @@ This file is the only file in the repository allowed to name Tsela; the name gat
 - Repository: the owner's private Tsela repository, branch `main`, commit `c1f1d8f` (fetched on
   7 and 9 October 2026), exported with `git archive`, so only tracked files were read. `.env` files
   were excluded from every export and were not read. The source's working tree was never used.
+- The soft glass look (25 October 2026): the owner's design on the source's branch `feat/soft-glass`,
+  commit `2baadbf` (its pull request is open, so it is not on `main` yet), read with `git show`
+  from `origin/feat/soft-glass`. Only tokens, the design principles and the rider's stylesheet
+  were read, and the source's working tree was not used.
 - Left out on purpose: the business plan, company structure, standards and compliance, pitch and
   research material, journal articles, screenshots, the transit schema, routes, stops, GTFS,
   pathfinding, the optimiser, road geometry, community posts and route contributions, transit seed
@@ -66,20 +70,23 @@ review), the transit schema migration, the transit seed, and their seven tests.
 | `SECURITY.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` | the same paths | Rewritten for Kori; little text kept |
 | `scripts/sync-shared.mjs` | `design/sync.mjs` | Copies the whole `shared/` folder, removes stale copies |
 | `shared/theme-toggle.tsx` | `design/theme-toggle.tsx` | `useSyncExternalStore`, Day and Night labels, new storage key |
-| `shared/tokens.css` | `design/tokens.css` (structure and variable names) | Every value is new |
+| `shared/tokens.css` | `design/tokens.css` (structure and variable names; from `2baadbf`, the soft glass values) | The canvas washes, translucent surfaces and glass, ink, link blue, shadows, radii and the Night values come from the source. Kori's brand green, map palette, marker shadow, code, phone-frame and QR tokens are new, the Night washes and fills are softened so every pair passes AA, and the contrast figures come from Kori's own script |
+| `apps/field/app/globals.css`, `apps/review/app/globals.css`, `apps/landing/app/globals.css`, `apps/api-docs/app/globals.css` | `rider/app/globals.css` (from `2baadbf`; the look only) | Rewritten for Kori's components and class names; the shared ideas are the fixed wash layer, pill buttons with an ink primary, a floating glass dock and rail, translucent cards and blur only on things that float |
 | `shared/geo.ts` (two functions) | `rider/lib/geo.js` | Ported to TypeScript on [lon, lat] pairs |
 | `shared/routing.ts` | `api/app/services/routing.py` (the idea: Dijkstra over a graph built from edges) | New TypeScript code |
 | `apps/field/lib/store/local-store.ts` (outbox replay) | `rider/lib/outbox.ts` | IndexedDB, per-sighting idempotency keys, no 20-item cap |
 | `apps/field/public/sw.js` | `rider/public/sw.js` | Precaches every screen and its build files; never caches packs |
 | `apps/field/scripts/copy-maplibre-worker.mjs`, `lib/maplibre-setup.ts`, `components/sw-register.tsx`, `next.config.ts` | the matching `rider/` files | Comments and headers adapted |
 | `apps/*/eslint.config.mjs`, `tsconfig.json`, `Dockerfile` | `rider/eslint.config.mjs`, `tsconfig.json`, `Dockerfile` | Kori ports, Node 24, `.ts` imports allowed |
-| `docs/DESIGN_PRINCIPLES.md` | `docs/DESIGN_PRINCIPLES.md` (checklist format) | Rewritten for field use in sun and with no signal |
+| `docs/DESIGN_PRINCIPLES.md` | `docs/DESIGN_PRINCIPLES.md` (checklist format; the soft glass rules from `2baadbf`) | Rewritten for field use in sun and with no signal, then for soft glass in blue and green |
 
 ## What is new for Kori
 
 - Every screen of the four web apps, the park map, guidance, QR sharing and scanning, trips, photo
   re-encoding, the review console, the landing site and the API docs.
-- The Kori mark, icons, palette, type and field-use rules.
+- The Kori mark, icons, brand green, map palette, type and field-use rules, the map style
+  (`shared/map-style.ts`), marker grouping (`shared/map-markers.ts`) and the contrast check
+  (`scripts/check-contrast.mjs`).
 - Species, publication rules, the fictional sample reserve, sample sightings, share codes, and
   their tests (`shared/`, `tests/`).
 - The API's Kori domain: species, sightings with the publication rules, review decisions, trips
