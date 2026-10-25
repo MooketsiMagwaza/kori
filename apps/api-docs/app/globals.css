@@ -1,6 +1,7 @@
 @import "../shared/tokens.css";
 
-/* Kori API docs: a reading layout. Side navigation on wide screens, a scrolling row on phones. */
+/* Kori API docs, soft glass: a reading layout. A floating glass bar on top; a glass side navigation
+ * on wide screens and a scrolling row of pills on phones. Colours, radii and type come from the tokens. */
 
 *,
 *::before,
@@ -8,14 +9,29 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  background: var(--c-bg);
+}
+
 body {
   margin: 0;
-  background: var(--c-bg);
   color: var(--c-ink);
   font-family: var(--font-ui);
   font-size: var(--fs-base);
   line-height: var(--lh-body);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* The canvas wash, on a fixed layer so it stays put as the page scrolls, on every phone. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--wash);
+  pointer-events: none;
 }
 
 h1,
@@ -24,7 +40,9 @@ h3 {
   font-family: var(--font-display);
   font-weight: 700;
   line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
   margin: 0;
+  text-wrap: balance;
 }
 
 h1 {
@@ -59,10 +77,14 @@ a {
   text-underline-offset: 3px;
 }
 
+::selection {
+  background: var(--c-accent-soft);
+}
+
 :focus-visible {
   outline: 3px solid var(--c-focus);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .sr-only {
@@ -77,15 +99,18 @@ a {
 .skip-link {
   position: absolute;
   left: 12px;
-  top: -60px;
+  top: -80px;
   z-index: 100;
-  padding: 12px 16px;
-  background: var(--c-surface);
-  color: var(--c-ink);
-  border-radius: var(--r-md);
+  padding: 12px 20px;
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+  border-radius: var(--r-pill);
+  /* No shadow while hidden: its blur would reach back into the top-left of the screen. */
+  box-shadow: none;
 }
 
 .skip-link:focus {
+  box-shadow: var(--sh-2);
   top: 12px;
 }
 
@@ -109,9 +134,10 @@ a {
 }
 
 .docs-tag {
-  padding: 2px 10px;
+  padding: 3px 12px;
   border-radius: var(--r-pill);
-  background: var(--c-fill);
+  background: var(--c-accent-soft);
+  color: var(--c-accent-text);
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
   font-weight: 700;
@@ -124,23 +150,40 @@ a {
   min-width: var(--tap);
   min-height: var(--tap);
   margin-left: auto;
-  border: 1px solid var(--c-line);
+  border: 0;
   border-radius: var(--r-pill);
-  background: var(--c-surface);
+  background: var(--c-fill);
   color: var(--c-ink);
   cursor: pointer;
 }
 
+.theme-toggle:hover {
+  background: var(--c-accent-soft);
+}
+
+/* The bar floats over the page as it scrolls, so it is glass */
 .docs-bar {
   position: sticky;
-  top: 0;
+  top: var(--s-3);
   z-index: 20;
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  padding: var(--s-2) var(--s-4);
-  background: var(--c-surface);
-  border-bottom: 1px solid var(--c-line);
+  max-width: 1200px;
+  margin: var(--s-3) var(--s-3) 0;
+  padding: var(--s-1) var(--s-2) var(--s-1) var(--s-5);
+  border-radius: var(--r-pill);
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  backdrop-filter: var(--glass-blur-strong);
+  box-shadow: var(--sh-2);
+}
+
+@media (min-width: 1224px) {
+  .docs-bar {
+    margin-inline: auto;
+    width: 1200px;
+  }
 }
 
 .docs-body {
@@ -153,20 +196,24 @@ a {
   display: flex;
   gap: var(--s-1);
   overflow-x: auto;
-  padding: var(--s-2) var(--s-4);
-  border-bottom: 1px solid var(--c-line);
+  padding: var(--s-3) var(--s-4) var(--s-1);
 }
 
 .docs-nav a {
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
-  padding: 0 var(--s-3);
-  border-radius: var(--r-md);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-pill);
   color: var(--c-ink-2);
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
+}
+
+.docs-nav a:hover {
+  background: var(--c-fill);
+  color: var(--c-ink);
 }
 
 .docs-nav a[aria-current="page"] {
@@ -176,18 +223,22 @@ a {
 
 @media (min-width: 900px) {
   .docs-body {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: 252px minmax(0, 1fr);
     gap: var(--s-6);
     padding: 0 var(--s-5);
   }
 
   .docs-nav {
     position: sticky;
-    top: 68px;
+    top: 104px;
     align-self: start;
     flex-direction: column;
-    padding: var(--s-5) 0;
-    border-bottom: 0;
+    margin-top: var(--s-5);
+    padding: var(--s-3);
+    border-radius: var(--r-xl);
+    background: var(--c-surface);
+    box-shadow: var(--sh-1);
+    overflow: visible;
   }
 }
 
@@ -202,8 +253,8 @@ a {
 
 .docs-status {
   padding: var(--s-3) var(--s-4);
-  border: 2px dashed var(--c-brand);
-  border-radius: var(--r-lg);
+  border: 1.5px dashed var(--c-brand);
+  border-radius: var(--r-md);
   background: var(--c-brand-soft);
   color: var(--c-brand-ink);
   font-size: var(--fs-sm);
@@ -226,20 +277,21 @@ a {
 code {
   font-family: var(--font-mono);
   font-size: 0.9em;
-  padding: 1px 5px;
-  border-radius: 4px;
+  padding: 1px 6px;
+  border-radius: 6px;
   background: var(--c-fill);
 }
 
 pre {
   margin: 0;
-  padding: var(--s-4);
+  padding: var(--s-5);
   overflow-x: auto;
   border-radius: var(--r-lg);
-  background: #1b1611;
-  color: #f5eee2;
+  background: var(--c-code);
+  color: var(--c-on-code);
   font-size: 0.86rem;
   line-height: 1.55;
+  box-shadow: var(--sh-1);
 }
 
 pre code {
@@ -252,7 +304,7 @@ pre code {
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
-  padding: var(--s-4);
+  padding: var(--s-5);
   background: var(--c-surface);
   border-radius: var(--r-lg);
   box-shadow: var(--sh-1);
@@ -268,7 +320,7 @@ pre code {
 }
 
 .method {
-  padding: 2px 10px;
+  padding: 3px 12px;
   border-radius: var(--r-pill);
   background: var(--c-good-soft);
   color: var(--c-good);
@@ -276,7 +328,7 @@ pre code {
 }
 
 .scope {
-  padding: 2px 10px;
+  padding: 3px 12px;
   border-radius: var(--r-pill);
   background: var(--c-fill);
   color: var(--c-ink-2);
@@ -285,6 +337,7 @@ pre code {
 
 .table-scroll {
   overflow-x: auto;
+  border-radius: var(--r-lg);
 }
 
 table {
@@ -305,7 +358,7 @@ td {
 }
 
 thead th {
-  background: var(--c-fill-2);
+  background: var(--c-fill);
   font-size: var(--fs-sm);
 }
 
@@ -317,11 +370,12 @@ tr:last-child td {
   display: inline-flex;
   align-items: center;
   min-height: 26px;
-  padding: 0 10px;
+  padding: 0 12px;
   border-radius: var(--r-pill);
   font-size: var(--fs-xs);
   font-weight: 700;
   background: var(--c-fill);
+  color: var(--c-ink-2);
 }
 
 .chip-sample {
@@ -332,4 +386,15 @@ tr:last-child td {
 .chip-bad {
   background: var(--c-bad-soft);
   color: var(--c-bad);
+}
+
+@media (forced-colors: active) {
+  .docs-bar,
+  .docs-nav,
+  .endpoint,
+  .docs-status,
+  table,
+  .chip {
+    border: 1px solid CanvasText;
+  }
 }
