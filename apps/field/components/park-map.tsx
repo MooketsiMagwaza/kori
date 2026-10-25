@@ -14,9 +14,11 @@ import "@/lib/maplibre-setup";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AttributionControl, Map as MapLibreMap, Marker, ScaleControl, type GeoJSONSource } from "maplibre-gl";
+import { AttributionControl, LngLatBounds, Map as MapLibreMap, Marker, ScaleControl, type GeoJSONSource, type LayerSpecification } from "maplibre-gl";
 import type { LonLat } from "@/shared/geo";
 import { distanceMeters, distanceToPolylineMeters, formatDistance, metersToDegrees } from "@/shared/geo";
+import { CELL_LAYER_IDS, MAP_LAYERS, MAP_SOURCES, colourBindings, resolveLayer } from "@/shared/map-style";
+import { groupPins, placeLabels, type Pin } from "@/shared/map-markers";
 import { reserveGeoJSON, isInsideReserve, SAMPLE_RESERVE_ID, type Reserve } from "@/shared/reserve";
 import { routeAlongTracks, type RouteResult } from "@/shared/routing";
 import { canGuide, cellRing, isPublic, sensitivityOf } from "@/shared/rules";
@@ -28,8 +30,10 @@ import { formatBytes, useGeolocation, useNow, useStoreData } from "@/lib/hooks";
 
 const EMPTY = { type: "FeatureCollection" as const, features: [] };
 
+// Colours come from the design tokens (--m-*), read when the layers are added and again when the
+// theme changes. There is no colour in this file.
 function cssVar(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#888";
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
 function circle(centre: LonLat, radiusMeters: number): LonLat[] {
@@ -43,73 +47,22 @@ function circle(centre: LonLat, radiusMeters: number): LonLat[] {
 }
 
 function paint(map: MapLibreMap) {
-  const set = (layer: string, prop: string, value: string) => {
-    if (map.getLayer(layer)) map.setPaintProperty(layer, prop as never, value as never);
-  };
-  set("bg", "background-color", cssVar("--m-land-2"));
-  set("boundary-fill", "fill-color", cssVar("--m-land"));
-  set("boundary-line", "line-color", cssVar("--m-boundary"));
-  set("pans-fill", "fill-color", cssVar("--m-pan"));
-  set("pans-line", "line-color", cssVar("--m-water"));
-  set("river", "line-color", cssVar("--m-river"));
-  set("tracks-verified", "line-color", cssVar("--m-track"));
-  set("tracks-gps", "line-color", cssVar("--m-track-gps"));
-  set("tracks-predicted", "line-color", cssVar("--m-track-predicted"));
-  set("cells-fill", "fill-color", cssVar("--m-cell"));
-  set("cells-line", "line-color", cssVar("--m-cell"));
-  set("cells-sensitive-line", "line-color", cssVar("--m-cell-sensitive"));
-  set("route-casing", "line-color", cssVar("--c-surface"));
-  set("route", "line-color", cssVar("--m-route"));
-  set("accuracy", "fill-color", cssVar("--m-me"));
+  for (const { layer, property, token } of colourBindings()) {
+    if (map.getLayer(layer)) map.setPaintProperty(layer, property as never, cssVar(token) as never);
+  }
 }
 
 function addLayers(map: MapLibreMap) {
-  const sources = ["boundary", "pans", "river", "tracks", "cells", "route", "accuracy"];
-  for (const id of sources) map.addSource(id, { type: "geojson", data: EMPTY });
-  map.addLayer({ id: "bg", type: "background", paint: { "background-color": "#e6d8b9" } });
-  map.addLayer({ id: "boundary-fill", type: "fill", source: "boundary", paint: { "fill-color": "#efe5cf" } });
-  map.addLayer({ id: "boundary-line", type: "line", source: "boundary", paint: { "line-color": "#6e5a3e", "line-width": 2, "line-dasharray": [4, 3] } });
-  map.addLayer({ id: "pans-fill", type: "fill", source: "pans", paint: { "fill-color": "#d9dccf" } });
-  map.addLayer({ id: "pans-line", type: "line", source: "pans", paint: { "line-color": "#9cc0c9", "line-width": 1.5 } });
-  map.addLayer({ id: "river", type: "line", source: "river", layout: { "line-cap": "round" }, paint: { "line-color": "#b9a37c", "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2, 14, 7] } });
-  map.addLayer({
-    id: "tracks-predicted",
-    type: "line",
-    source: "tracks",
-    filter: ["==", ["get", "status"], "predicted"],
-    layout: { visibility: "none", "line-cap": "butt" },
-    paint: { "line-color": "#8a7b66", "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1.5, 14, 3.5], "line-dasharray": [2, 2] },
-  });
-  map.addLayer({
-    id: "tracks-gps",
-    type: "line",
-    source: "tracks",
-    filter: ["==", ["get", "status"], "gps"],
-    layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": "#6b4a2a", "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1.6, 14, 4] },
-  });
-  map.addLayer({
-    id: "tracks-verified",
-    type: "line",
-    source: "tracks",
-    filter: ["==", ["get", "status"], "verified"],
-    layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": "#3a2716", "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2, 14, 5] },
-  });
-  map.addLayer({ id: "cells-fill", type: "fill", source: "cells", paint: { "fill-color": "#8c3a0c", "fill-opacity": 0.16 } });
-  map.addLayer({ id: "cells-line", type: "line", source: "cells", filter: ["!", ["get", "sensitive"]], paint: { "line-color": "#8c3a0c", "line-width": 2.5 } });
-  map.addLayer({
-    id: "cells-sensitive-line",
-    type: "line",
-    source: "cells",
-    filter: ["get", "sensitive"],
-    paint: { "line-color": "#a2251a", "line-width": 2.5, "line-dasharray": [3, 2] },
-  });
-  map.addLayer({ id: "route-casing", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#fff", "line-width": 10 } });
-  map.addLayer({ id: "route", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#1f6f8b", "line-width": 6 } });
-  map.addLayer({ id: "accuracy", type: "fill", source: "accuracy", paint: { "fill-color": "#1f6f8b", "fill-opacity": 0.15 } });
-  paint(map);
+  for (const id of MAP_SOURCES) map.addSource(id, { type: "geojson", data: EMPTY });
+  for (const layer of MAP_LAYERS) map.addLayer(resolveLayer(layer, cssVar) as unknown as LayerSpecification);
 }
+
+// Marker tuning. Dots closer than CLUSTER_PX merge into a numbered cluster; names are drawn for the
+// selected pin and the one nearest you, and for others only from LABEL_ZOOM, where they fit.
+const CLUSTER_PX = 44;
+const LABEL_ZOOM = 11.5;
+const PLACE_LABEL_ZOOM = 11;
+const NEARBY_METERS = 3_000;
 
 type Props = { to: string | null };
 
@@ -117,8 +70,10 @@ export default function ParkMap({ to }: Props) {
   const container = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const meMarker = useRef<Marker | null>(null);
-  const htmlMarkers = useRef<Marker[]>([]);
+  const placeMarkers = useRef<Marker[]>([]);
   const [ready, setReady] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
   const [gpsOn, setGpsOn] = useState(false);
   const [showPredicted, setShowPredicted] = useState(false);
   const [showCells, setShowCells] = useState(true);
@@ -169,6 +124,19 @@ export default function ParkMap({ to }: Props) {
     routeRef.current = route;
   });
 
+  // The sighting nearest you (inside the reserve, within a few km) is the one that gets a name by default.
+  const fixLon = geo.fix?.lon ?? null;
+  const fixLat = geo.fix?.lat ?? null;
+  const nearbyId = useMemo(() => {
+    if (fixLon === null || fixLat === null || !inside) return null;
+    let best: { id: string; distance: number } | null = null;
+    for (const s of visibleSightings) {
+      const distance = distanceMeters([fixLon, fixLat], s.cell.centre);
+      if (distance <= NEARBY_METERS && (!best || distance < best.distance)) best = { id: s.id, distance };
+    }
+    return best?.id ?? null;
+  }, [fixLon, fixLat, inside, visibleSightings]);
+
   const offRoute = route && fix && inside ? distanceToPolylineMeters(fix, route.line) : null;
   const offRouteLimit = Math.max(150, (geo.fix?.accuracy ?? 0) * 1.5);
 
@@ -185,16 +153,22 @@ export default function ParkMap({ to }: Props) {
       dragRotate: false,
     });
     map.touchZoomRotate.disableRotation();
-    map.addControl(new AttributionControl({ compact: true, customAttribution: "Sample reserve: fictional, generated by Kori" }));
+    map.addControl(new AttributionControl({ compact: true, customAttribution: "Sample reserve: fictional, generated by Kori" }), "bottom-left");
     map.addControl(new ScaleControl({ unit: "metric" }), "bottom-left");
     map.on("load", () => {
       addLayers(map);
       setReady(true);
     });
-    // Below zoom 11 the sighting labels shrink to dots so they do not pile on top of each other.
-    const compact = () => map.getContainer().classList.toggle("labels-compact", map.getZoom() < 11);
-    map.on("zoom", compact);
-    compact();
+    // Sighting dots are regrouped when the camera comes to rest, and a tap on bare map clears the selection.
+    map.on("moveend", () => setTick((t) => t + 1));
+    // Camp names show once you are zoomed in far enough to have room for them.
+    const nameCamps = () => map.getContainer().classList.toggle("map-zoomed", map.getZoom() >= PLACE_LABEL_ZOOM);
+    map.on("zoom", nameCamps);
+    nameCamps();
+    map.on("click", (event) => {
+      const hit = event.originalEvent.target as HTMLElement | null;
+      if (!hit?.closest(".pin-wrap, .pin-cluster")) setSelectedId(null);
+    });
     mapRef.current = map;
     // Debugging aid: /map?debug exposes the map instance in the console.
     if (new URLSearchParams(window.location.search).has("debug")) (window as unknown as { koriMap?: MapLibreMap }).koriMap = map;
@@ -223,14 +197,17 @@ export default function ParkMap({ to }: Props) {
     set("tracks", layers.tracks);
     if (!to) map.fitBounds(reserve.bounds, { padding: 40, duration: 0 });
 
-    htmlMarkers.current.forEach((m) => m.remove());
-    htmlMarkers.current = reserve.nodes
+    placeMarkers.current.forEach((m) => m.remove());
+    placeMarkers.current = reserve.nodes
       .filter((n) => n.kind !== "junction")
       .map((node) => {
         const el = document.createElement("div");
-        el.className = "place-marker";
-        el.textContent = node.name ?? "";
-        return new Marker({ element: el, anchor: "bottom" }).setLngLat(node.at).addTo(map);
+        el.className = `place-marker place-${node.kind}`;
+        const name = document.createElement("span");
+        name.className = "place-name";
+        name.textContent = node.name ?? "";
+        el.append(name);
+        return new Marker({ element: el, anchor: "center" }).setLngLat(node.at).addTo(map);
       });
   }, [reserve, ready, to]);
 
@@ -239,11 +216,10 @@ export default function ParkMap({ to }: Props) {
     const map = mapRef.current;
     if (!map || !ready) return;
     map.setLayoutProperty("tracks-predicted", "visibility", showPredicted ? "visible" : "none");
-    for (const id of ["cells-fill", "cells-line", "cells-sensitive-line"]) map.setLayoutProperty(id, "visibility", showCells ? "visible" : "none");
+    for (const id of CELL_LAYER_IDS) map.setLayoutProperty(id, "visibility", showCells ? "visible" : "none");
   }, [showPredicted, showCells, ready]);
 
-  // Sighting cells, with a label marker each.
-  const cellMarkers = useRef<Marker[]>([]);
+  // Sighting areas: the 1 km (or 10 km) squares that are actually published.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -253,17 +229,78 @@ export default function ParkMap({ to }: Props) {
       geometry: { type: "Polygon" as const, coordinates: [cellRing(s.cell)] },
     }));
     (map.getSource("cells") as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features });
-    cellMarkers.current.forEach((m) => m.remove());
-    cellMarkers.current = showCells
-      ? visibleSightings.map((s) => {
-          const el = document.createElement("a");
-          el.href = `/sighting?id=${encodeURIComponent(s.id)}`;
-          el.className = `cell-label${sensitivityOf(s) === "sensitive" ? " sensitive" : ""}`;
-          el.textContent = speciesById(s.speciesId)?.common ?? "Sighting";
-          return new Marker({ element: el }).setLngLat(s.cell.centre).addTo(map);
-        })
-      : [];
-  }, [visibleSightings, ready, showCells]);
+  }, [visibleSightings, ready]);
+
+  // Sighting dots. Each marks the middle of its area (never an exact spot). Dots that would touch
+  // merge into a numbered cluster, and a name is written only beside the selected pin, the one
+  // nearest you, and, zoomed in, pins whose name fits without covering anything else.
+  const pinMarkers = useRef<Marker[]>([]);
+  const targetId = target?.id ?? null;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    pinMarkers.current.forEach((m) => m.remove());
+    pinMarkers.current = [];
+    if (!showCells) return;
+    const byId = new Map(visibleSightings.map((s) => [s.id, s]));
+    const all: Pin[] = visibleSightings.map((s) => {
+      const at = map.project(s.cell.centre);
+      return { id: s.id, x: at.x, y: at.y, sensitive: sensitivityOf(s) === "sensitive", name: speciesById(s.speciesId)?.common ?? "Sighting" };
+    });
+    // The selected pin, the guidance target and the nearest pin always stand alone.
+    const standalone = new Set([selectedId, targetId, nearbyId].filter((id): id is string => Boolean(id)));
+    const grouped = groupPins(
+      all.filter((p) => !standalone.has(p.id)),
+      CLUSTER_PX,
+    );
+    const pins = [...grouped.pins, ...all.filter((p) => standalone.has(p.id))];
+    const labels = placeLabels(pins, {
+      required: [...standalone],
+      optional: map.getZoom() >= LABEL_ZOOM,
+      viewportWidth: map.getContainer().clientWidth,
+      obstacles: grouped.clusters.map((c) => ({ x: c.x, y: c.y, radius: 24 })),
+    });
+
+    for (const pin of pins) {
+      const s = byId.get(pin.id);
+      if (!s) continue;
+      const selected = pin.id === selectedId || pin.id === targetId;
+      const wrap = document.createElement("div");
+      wrap.className = `pin-wrap${selected ? " is-selected" : ""}`;
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = `pin${pin.sensitive ? " pin-sensitive" : ""}`;
+      dot.setAttribute("aria-label", `${pin.name}${pin.sensitive ? ", sensitive species, presence only" : ""}. Show its name.`);
+      dot.setAttribute("aria-pressed", String(selected));
+      dot.addEventListener("click", () => setSelectedId((current) => (current === pin.id ? null : pin.id)));
+      wrap.append(dot);
+      const side = labels.get(pin.id);
+      if (side) {
+        const label = document.createElement("a");
+        label.className = `pin-label pin-label-${side}`;
+        label.href = `/sighting?id=${encodeURIComponent(pin.id)}`;
+        label.textContent = pin.name;
+        wrap.append(label);
+      }
+      pinMarkers.current.push(new Marker({ element: wrap, anchor: "center" }).setLngLat(s.cell.centre).addTo(map));
+    }
+
+    for (const cluster of grouped.clusters) {
+      const bounds = new LngLatBounds();
+      for (const member of cluster.members) {
+        const s = byId.get(member.id);
+        if (s) bounds.extend(s.cell.centre);
+      }
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "pin-cluster";
+      el.textContent = String(cluster.members.length);
+      el.setAttribute("aria-label", `${cluster.members.length} sightings close together. Zoom in to see them.`);
+      el.addEventListener("click", () => map.fitBounds(bounds, { padding: 96, maxZoom: 15, duration: 400 }));
+      const centre = map.unproject([cluster.x, cluster.y]);
+      pinMarkers.current.push(new Marker({ element: el, anchor: "center" }).setLngLat([centre.lng, centre.lat]).addTo(map));
+    }
+  }, [visibleSightings, ready, showCells, selectedId, targetId, nearbyId, tick]);
 
   // Route: redrawn only when the route itself changes, so the map does not jump on every GPS reading.
   useEffect(() => {
@@ -419,7 +456,19 @@ export default function ParkMap({ to }: Props) {
               <span className="swatch-cell" /> Sighting area (1 km)
             </li>
             <li>
+              <span className="swatch-dot" /> A sighting, marked at the middle of its area, not at the animal
+            </li>
+            <li>
+              <span className="swatch-cluster">3</span> Several sightings close together; tap to zoom in
+            </li>
+            <li>
               <span className="swatch-cell sensitive" /> Sensitive species, presence only (10 km)
+            </li>
+            <li>
+              <span className="swatch-dot sensitive" /> A sensitive species, marked as a ring
+            </li>
+            <li>
+              <span className="swatch-place" /> The gate and camps (camp names show when you zoom in)
             </li>
             <li>
               <span className="swatch-me" /> You
