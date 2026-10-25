@@ -9,13 +9,15 @@ decides when it goes public.
 
 - `apps/field` (3100), `apps/landing` (3000), `apps/review` (3300), `apps/api-docs` (3400): Next.js 16.
   In each: `npm ci`, `npm run dev`, `npm run lint`, `npx tsc --noEmit`, `npm run build`.
-- `shared/`: tokens, icons, species, rules, sample reserve, routing, share codes. Edit here, then
+- `shared/`: tokens, icons, map style and marker grouping, species, rules, sample reserve, routing,
+  share codes. Edit here, then
   `node scripts/sync-shared.mjs`; never edit an app's `shared/` copy.
 - `api/`: FastAPI, SQLAlchemy, Alembic. `python -m venv .venv`, `pip install -e ".[dev]"`,
   `ruff check app tests`, `pytest`. After changing `/v1` routes: `python scripts/export_openapi.py`.
 - Whole stack: `docker compose up` (database, API, scheduler, apps, monitoring);
   `docker compose config --quiet` to validate.
 - Repository checks: `node scripts/check-names.mjs`, `node scripts/sync-shared.mjs --check`,
+  `node scripts/check-contrast.mjs` (WCAG contrast of every token pair, Day and Night),
   `node --test "tests/*.test.ts"`.
 - Long commands (npm installs, builds, a database, compose up): run them in the background with
   output to a log file, and poll the log.
