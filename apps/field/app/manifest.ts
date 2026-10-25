@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Wildlife sightings and park maps that work with no signal.",
     start_url: "/",
     display: "standalone",
-    background_color: "#f6f0e4",
-    theme_color: "#f6f0e4",
+    background_color: "#f3fbf8",
+    theme_color: "#f3fbf8",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml" },
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },

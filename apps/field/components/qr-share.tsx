@@ -25,7 +25,10 @@ export function QrShare({ sighting, now }: { sighting: Sighting; now: Date }) {
       reviewed: sighting.status === "approved",
     });
     let alive = true;
-    QRCode.toString(url, { type: "svg", errorCorrectionLevel: "M", margin: 1, color: { dark: "#1b1611", light: "#ffffff" } })
+    // Dark on white in both themes (--qr-ink on --qr-paper), so any scanner reads it.
+    const style = getComputedStyle(document.documentElement);
+    const color = { dark: style.getPropertyValue("--qr-ink").trim(), light: style.getPropertyValue("--qr-paper").trim() };
+    QRCode.toString(url, { type: "svg", errorCorrectionLevel: "M", margin: 1, color })
       .then((text) => {
         if (alive) {
           setSvg(text);

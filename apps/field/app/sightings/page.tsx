@@ -35,7 +35,6 @@ export default function SightingsPage() {
             type="button"
             className="btn"
             aria-pressed={filter === f.id}
-            style={filter === f.id ? { background: "var(--c-accent-soft)", borderColor: "var(--c-accent)" } : undefined}
             onClick={() => setFilter(f.id)}
           >
             {f.label}
