@@ -41,7 +41,7 @@ export function ReviewMap({ point, accuracy, cell, sensitive }: { point: LonLat;
         strokeDasharray={sensitive ? "9 6" : undefined}
       />
       {accPx ? <circle cx={px} cy={py} r={accPx} fill="var(--m-me)" fillOpacity="0.18" /> : null}
-      <circle cx={px} cy={py} r="7" fill="var(--c-ink)" stroke="#fff" strokeWidth="3" />
+      <circle cx={px} cy={py} r="7" fill="var(--c-ink)" stroke="var(--m-halo)" strokeWidth="3" />
     </svg>
   );
 }

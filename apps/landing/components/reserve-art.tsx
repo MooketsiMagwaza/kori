@@ -79,11 +79,11 @@ export function HeroMap() {
       ))}
       {route ? (
         <>
-          <path d={pathOf(view, route.line)} fill="none" stroke="var(--c-surface)" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={pathOf(view, route.line)} fill="none" stroke="var(--m-halo)" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
           <path d={pathOf(view, route.line)} fill="none" stroke="var(--m-route)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
         </>
       ) : null}
-      <circle cx={gx} cy={gy} r="9" fill="var(--m-me)" stroke="#fff" strokeWidth="3" />
+      <circle cx={gx} cy={gy} r="9" fill="var(--m-me)" stroke="var(--m-halo)" strokeWidth="3" />
     </svg>
   );
 }
@@ -136,11 +136,11 @@ export function GuidanceArt() {
       </g>
       {route ? (
         <>
-          <path d={pathOf(view, route.line)} fill="none" stroke="var(--c-surface)" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={pathOf(view, route.line)} fill="none" stroke="var(--m-halo)" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
           <path d={pathOf(view, route.line)} fill="none" stroke="var(--m-route)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
         </>
       ) : null}
-      <circle cx={ax} cy={ay} r="9" fill="var(--m-me)" stroke="#fff" strokeWidth="3" />
+      <circle cx={ax} cy={ay} r="9" fill="var(--m-me)" stroke="var(--m-halo)" strokeWidth="3" />
     </svg>
   );
 }
@@ -161,8 +161,8 @@ export function TripArt() {
       <path d={line(0, 9)} fill="none" stroke="var(--m-track-predicted)" strokeWidth="4" strokeDasharray="4 6" strokeLinecap="round" />
       <path d={line(51, 60)} fill="none" stroke="var(--m-track-predicted)" strokeWidth="4" strokeDasharray="4 6" strokeLinecap="round" />
       <path d={line(9, 51)} fill="none" stroke="var(--m-route)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={points[0][0]} cy={points[0][1]} r="6" fill="var(--c-surface)" stroke="var(--m-track-predicted)" strokeWidth="3" />
-      <circle cx={points[60][0]} cy={points[60][1]} r="6" fill="var(--c-surface)" stroke="var(--m-track-predicted)" strokeWidth="3" />
+      <circle cx={points[0][0]} cy={points[0][1]} r="6" fill="var(--m-halo)" stroke="var(--m-track-predicted)" strokeWidth="3" />
+      <circle cx={points[60][0]} cy={points[60][1]} r="6" fill="var(--m-halo)" stroke="var(--m-track-predicted)" strokeWidth="3" />
     </svg>
   );
 }

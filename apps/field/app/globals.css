@@ -1,7 +1,10 @@
 @import "../shared/tokens.css";
 
-/* Kori field app. Phone first: a top bar and a bottom bar on phones, a left rail on wide screens.
- * Every tappable thing is 48px or more; the one filled button on a screen is 56px. */
+/* Kori field app, soft glass. Phone first: a floating pill bar on top and a floating pill dock at the
+ * bottom on phones, a floating rail on wide screens. Cards are translucent but not blurred; blur is
+ * only for things that float over other content (the bars, map panels, map markers). Every tappable
+ * thing is 48px or more; the one filled (ink) button on a screen is 56px. Colours, radii and type
+ * come from the tokens; nothing here is a hard-coded colour. */
 
 *,
 *::before,
@@ -9,20 +12,37 @@
   box-sizing: border-box;
 }
 
+:root {
+  /* Layout constants for the floating bars (not design tokens) */
+  --topbar-h: 76px;
+  --dock-space: calc(104px + env(safe-area-inset-bottom));
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  background: var(--c-bg);
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
-  background: var(--c-bg);
   color: var(--c-ink);
   font-family: var(--font-ui);
   font-size: var(--fs-base);
   line-height: var(--lh-body);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* The canvas wash: drawn on a fixed layer so it stays put as the page scrolls, on every phone. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--wash);
+  pointer-events: none;
 }
 
 h1,
@@ -33,6 +53,7 @@ h3 {
   line-height: var(--lh-tight);
   margin: 0;
   letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
 h1 {
@@ -56,10 +77,14 @@ a {
   text-underline-offset: 3px;
 }
 
+::selection {
+  background: var(--c-accent-soft);
+}
+
 :focus-visible {
   outline: 3px solid var(--c-focus);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .sr-only {
@@ -77,16 +102,18 @@ a {
 .skip-link {
   position: absolute;
   left: var(--s-3);
-  top: -60px;
+  top: -80px;
   z-index: 100;
-  padding: var(--s-3) var(--s-4);
-  background: var(--c-surface);
-  color: var(--c-ink);
-  border-radius: var(--r-md);
-  box-shadow: var(--sh-2);
+  padding: var(--s-3) var(--s-5);
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+  border-radius: var(--r-pill);
+  /* No shadow while hidden: its blur would reach back into the top-left of the screen. */
+  box-shadow: none;
 }
 
 .skip-link:focus {
+  box-shadow: var(--sh-2);
   top: var(--s-3);
 }
 
@@ -131,16 +158,19 @@ a {
 
 .topbar {
   position: sticky;
-  top: 0;
+  top: max(var(--s-2), env(safe-area-inset-top));
   z-index: 20;
   display: flex;
   align-items: center;
   gap: var(--s-3);
   min-height: 60px;
-  padding: var(--s-2) var(--s-4);
-  padding-top: max(var(--s-2), env(safe-area-inset-top));
-  background: var(--c-bg);
-  border-bottom: 1px solid var(--c-line);
+  margin: max(var(--s-2), env(safe-area-inset-top)) var(--s-3) 0;
+  padding: var(--s-1) var(--s-2) var(--s-1) var(--s-4);
+  border-radius: var(--r-pill);
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  backdrop-filter: var(--glass-blur-strong);
+  box-shadow: var(--sh-2);
 }
 
 .topbar .kori-logo {
@@ -155,21 +185,24 @@ a {
 }
 
 .main {
-  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  padding-bottom: var(--dock-space);
 }
 
 .bottom-nav {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: var(--s-3);
+  right: var(--s-3);
+  bottom: max(var(--s-3), env(safe-area-inset-bottom));
   z-index: 30;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  align-items: end;
-  padding: 6px var(--s-2) calc(6px + env(safe-area-inset-bottom));
-  background: var(--c-surface);
-  border-top: 1px solid var(--c-line);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+  padding: var(--s-1) var(--s-2);
+  border-radius: 34px;
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  backdrop-filter: var(--glass-blur-strong);
+  box-shadow: var(--sh-2);
 }
 
 .nav-item {
@@ -178,12 +211,17 @@ a {
   align-items: center;
   justify-content: center;
   gap: 2px;
+  min-width: 0;
   min-height: 60px;
   color: var(--c-ink-2);
   font-size: var(--fs-xs);
   font-weight: 600;
   text-decoration: none;
   border-radius: var(--r-md);
+}
+
+.nav-item:hover {
+  color: var(--c-ink);
 }
 
 .nav-item .nav-icon {
@@ -195,8 +233,13 @@ a {
   transition: background var(--dur) var(--ease);
 }
 
+.nav-item:hover .nav-icon {
+  background: var(--c-fill);
+}
+
 .nav-item[aria-current="page"] {
   color: var(--c-ink);
+  font-weight: 700;
 }
 
 .nav-item[aria-current="page"] .nav-icon {
@@ -204,26 +247,63 @@ a {
   color: var(--c-accent-text);
 }
 
+/* Log is the one primary action in the bar: an ink pill */
 .nav-item.nav-log .nav-icon {
   width: 60px;
-  height: 44px;
+  height: 40px;
   background: var(--c-accent);
   color: var(--c-on-accent);
-  border-radius: var(--r-lg);
+}
+
+.nav-item.nav-log:hover .nav-icon {
+  background: var(--c-accent-hover);
 }
 
 .nav-item.nav-log[aria-current="page"] .nav-icon {
-  outline: 3px solid var(--c-accent-soft);
+  box-shadow: 0 0 0 3px var(--c-accent-soft);
 }
 
 .rail {
   display: none;
 }
 
+@media (max-width: 359px) {
+  .topbar {
+    margin-inline: var(--s-2);
+    padding-left: var(--s-3);
+  }
+
+  .topbar .kori-logo-word {
+    display: none;
+  }
+
+  .bottom-nav {
+    left: var(--s-2);
+    right: var(--s-2);
+    padding-inline: var(--s-1);
+  }
+
+  .nav-item {
+    font-size: 0.6875rem;
+  }
+
+  .nav-item .nav-icon {
+    width: 44px;
+  }
+
+  .nav-item.nav-log .nav-icon {
+    width: 48px;
+  }
+}
+
 @media (min-width: 960px) {
+  :root {
+    --dock-space: 0px;
+  }
+
   .shell {
     display: grid;
-    grid-template-columns: 112px 1fr;
+    grid-template-columns: 124px minmax(0, 1fr);
   }
 
   .topbar {
@@ -231,7 +311,6 @@ a {
   }
 
   .main {
-    padding-bottom: 0;
     min-width: 0;
   }
 
@@ -241,15 +320,19 @@ a {
 
   .rail {
     position: sticky;
-    top: 0;
-    height: 100dvh;
+    top: var(--s-3);
+    height: calc(100dvh - var(--s-5));
+    margin: var(--s-3) 0 var(--s-3) var(--s-3);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--s-3);
     padding: var(--s-4) var(--s-2);
-    background: var(--c-surface);
-    border-right: 1px solid var(--c-line);
+    border-radius: var(--r-xl);
+    background: var(--c-glass);
+    -webkit-backdrop-filter: var(--glass-blur-strong);
+    backdrop-filter: var(--glass-blur-strong);
+    box-shadow: var(--sh-2);
   }
 
   .rail .kori-logo {
@@ -285,14 +368,18 @@ a {
   min-width: var(--tap);
   min-height: var(--tap);
   padding: 0 var(--s-2);
-  border: 1px solid var(--c-line);
+  border: 0;
   border-radius: var(--r-pill);
-  background: var(--c-surface);
+  background: var(--c-fill);
   color: var(--c-ink);
   font: inherit;
   font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
+}
+
+.theme-toggle:hover {
+  background: var(--c-accent-soft);
 }
 
 .conn {
@@ -327,6 +414,12 @@ a {
   display: flex;
   flex-direction: column;
   gap: var(--s-5);
+}
+
+@media (min-width: 960px) {
+  .page {
+    padding-top: var(--s-6);
+  }
 }
 
 .page-head {
@@ -370,12 +463,12 @@ section {
   align-items: center;
 }
 
-/* Surfaces */
+/* Surfaces: translucent, with a white inner edge. In-flow, so not blurred. */
 .card {
   background: var(--c-surface);
   border-radius: var(--r-lg);
   box-shadow: var(--sh-1);
-  padding: var(--s-4);
+  padding: var(--s-5);
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
@@ -396,8 +489,8 @@ section {
   gap: var(--s-3);
   align-items: flex-start;
   padding: var(--s-3) var(--s-4);
-  border: 2px dashed var(--c-brand);
-  border-radius: var(--r-lg);
+  border: 1.5px dashed var(--c-brand);
+  border-radius: var(--r-md);
   background: var(--c-brand-soft);
   color: var(--c-brand-ink);
   font-size: var(--fs-sm);
@@ -413,7 +506,7 @@ section {
   gap: var(--s-3);
   align-items: flex-start;
   padding: var(--s-3) var(--s-4);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-md);
   font-size: var(--fs-sm);
 }
 
@@ -454,7 +547,7 @@ section {
   align-items: center;
   gap: 5px;
   min-height: 28px;
-  padding: 0 10px;
+  padding: 0 12px;
   border-radius: var(--r-pill);
   font-size: var(--fs-xs);
   font-weight: 700;
@@ -490,7 +583,7 @@ section {
   color: var(--c-accent-text);
 }
 
-/* Buttons */
+/* Buttons: pills. The one primary action is an ink pill; the rest are outlined. */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -499,18 +592,32 @@ section {
   min-height: var(--tap);
   padding: 0 var(--s-5);
   border-radius: var(--r-pill);
-  border: 2px solid var(--c-line-strong);
-  background: transparent;
-  color: var(--c-ink);
+  border: 0;
+  box-shadow: inset 0 0 0 1.5px var(--c-line-strong);
+  background: var(--c-fill-2);
+  color: var(--c-accent-text);
   font: inherit;
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
-  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 
 .btn:hover {
-  background: var(--c-fill);
+  background: var(--c-accent-soft);
+}
+
+.btn[aria-pressed="true"] {
+  background: var(--c-accent-soft);
+  box-shadow: inset 0 0 0 2px var(--c-accent-text);
+}
+
+.btn-row[role="group"] {
+  gap: var(--s-2);
+}
+
+.btn-row[role="group"] .btn {
+  padding: 0 var(--s-4);
 }
 
 .btn:disabled,
@@ -521,7 +628,7 @@ section {
 
 .btn-primary {
   min-height: var(--tap-lg);
-  border-color: var(--c-accent);
+  box-shadow: none;
   background: var(--c-accent);
   color: var(--c-on-accent);
   font-size: var(--fs-md);
@@ -529,18 +636,26 @@ section {
 
 .btn-primary:hover {
   background: var(--c-accent-hover);
-  border-color: var(--c-accent-hover);
 }
 
 .btn-danger {
-  border-color: var(--c-bad);
+  box-shadow: inset 0 0 0 1.5px var(--c-bad);
   color: var(--c-bad);
 }
 
+.btn-danger:hover {
+  background: var(--c-bad-soft);
+}
+
 .btn-quiet {
-  border-color: transparent;
+  box-shadow: none;
+  background: transparent;
   padding: 0 var(--s-3);
   color: var(--c-accent-text);
+}
+
+.btn-quiet:hover {
+  background: var(--c-fill);
 }
 
 .btn-block {
@@ -558,11 +673,21 @@ section {
   place-items: center;
   width: var(--tap);
   height: var(--tap);
+  border: 0;
   border-radius: var(--r-pill);
-  border: 1px solid var(--c-line);
-  background: var(--c-surface);
+  box-shadow: inset 0 0 0 1.5px var(--c-line-strong);
+  background: var(--c-fill-2);
   color: var(--c-ink);
   cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: var(--c-accent-soft);
+}
+
+.icon-btn[aria-pressed="true"] {
+  background: var(--c-accent-soft);
+  color: var(--c-accent-text);
 }
 
 /* Lists of rows */
@@ -646,6 +771,8 @@ a.row:hover {
 
 .facts dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Forms */
@@ -671,6 +798,7 @@ fieldset {
   border: 0;
   margin: 0;
   padding: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
@@ -689,12 +817,33 @@ select,
 textarea {
   width: 100%;
   min-height: var(--tap);
-  padding: 10px var(--s-3);
-  border: 2px solid var(--c-line-strong);
-  border-radius: var(--r-sm);
+  padding: 10px var(--s-4);
+  border: 1.5px solid var(--c-line-strong);
+  border-radius: var(--r-md);
   background: var(--c-surface);
   color: var(--c-ink);
   font: inherit;
+}
+
+input[type="search"] {
+  border-radius: var(--r-pill);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--c-ink-3);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--c-focus);
+  outline-offset: 1px;
+  border-radius: var(--r-md);
+}
+
+input[type="search"]:focus-visible {
+  border-radius: var(--r-pill);
 }
 
 textarea {
@@ -740,16 +889,19 @@ textarea {
 }
 
 .species-btn {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
   gap: 2px;
+  min-width: 0;
   min-height: 64px;
-  padding: var(--s-2) var(--s-3);
-  border: 2px solid var(--c-line);
+  padding: var(--s-2) var(--s-4);
+  border: 0;
   border-radius: var(--r-md);
   background: var(--c-surface);
+  box-shadow: var(--sh-1);
   color: var(--c-ink);
   font: inherit;
   text-align: left;
@@ -761,9 +913,26 @@ textarea {
   font-size: var(--fs-xs);
 }
 
+.species-btn:hover {
+  background: var(--c-fill-2);
+}
+
 .species-btn[aria-pressed="true"] {
-  border-color: var(--c-accent);
   background: var(--c-accent-soft);
+  box-shadow: inset 0 0 0 2px var(--c-accent-text);
+}
+
+/* A tick as well as the colour, so selection never relies on colour alone */
+.species-btn[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 6px;
+  height: 11px;
+  border: solid var(--c-accent-text);
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
 }
 
 .species-btn .chip {
@@ -792,23 +961,31 @@ textarea {
   height: 1px;
 }
 
-/* Map */
+/* Map. On phones it runs under the floating dock; on wide screens it is a framed panel. */
 .map-page {
+  --map-bottom: calc(var(--dock-space) + var(--s-1));
   position: relative;
-  height: calc(100dvh - 60px - 88px - env(safe-area-inset-bottom));
+  height: calc(100dvh - var(--topbar-h));
   min-height: 420px;
+  margin-bottom: calc(-1 * var(--dock-space));
+  margin-top: var(--s-2);
+  overflow: hidden;
 }
 
 @media (min-width: 960px) {
   .map-page {
-    height: 100dvh;
+    --map-bottom: var(--s-4);
+    height: calc(100dvh - var(--s-5));
+    margin: var(--s-3) var(--s-3) var(--s-3) 0;
+    border-radius: var(--r-xl);
+    box-shadow: var(--sh-2);
   }
 }
 
 .map-canvas {
   position: absolute;
   inset: 0;
-  background: var(--m-land);
+  background: var(--m-land-2);
 }
 
 .map-top {
@@ -827,22 +1004,31 @@ textarea {
   pointer-events: auto;
 }
 
+/* Everything that floats over the map is glass: blurred, near-opaque, ink text. */
 .map-banner {
   display: flex;
   align-items: flex-start;
   gap: var(--s-2);
-  padding: var(--s-2) var(--s-3);
-  border-radius: var(--r-md);
-  background: var(--c-surface);
+  max-width: 560px;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   box-shadow: var(--sh-2);
   font-size: var(--fs-sm);
-  max-width: 560px;
+}
+
+.map-banner svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--c-accent-text);
 }
 
 .map-controls {
   position: absolute;
   right: var(--s-3);
-  bottom: var(--s-4);
+  bottom: var(--map-bottom);
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -853,21 +1039,32 @@ textarea {
   width: 56px;
   height: 56px;
   box-shadow: var(--sh-2);
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.map-controls .icon-btn:hover,
+.map-controls .icon-btn[aria-pressed="true"] {
+  background: var(--c-surface-solid);
+  color: var(--c-accent-text);
 }
 
 .map-sheet {
   position: absolute;
   left: var(--s-3);
   right: 84px;
-  bottom: var(--s-4);
+  bottom: var(--map-bottom);
   z-index: 5;
   max-width: 460px;
   max-height: 55%;
   overflow: auto;
-  background: var(--c-surface);
-  border-radius: var(--r-lg);
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  backdrop-filter: var(--glass-blur-strong);
+  border-radius: var(--r-xl);
   box-shadow: var(--sh-2);
-  padding: var(--s-4);
+  padding: var(--s-4) var(--s-5);
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
@@ -911,14 +1108,16 @@ textarea {
 .swatch-cell {
   width: 22px;
   height: 22px;
+  margin: 0 7px;
   border: 2px solid var(--m-cell);
-  background: color-mix(in srgb, var(--m-cell) 18%, transparent);
+  background: color-mix(in srgb, var(--m-cell) 20%, transparent);
   flex: none;
 }
 
 .swatch-cell.sensitive {
   border-color: var(--m-cell-sensitive);
   border-style: dashed;
+  background: color-mix(in srgb, var(--m-cell-sensitive) 14%, transparent);
 }
 
 .swatch-me {
@@ -926,64 +1125,302 @@ textarea {
   height: 18px;
   border-radius: 50%;
   background: var(--m-me);
-  border: 3px solid #fff;
+  border: 3px solid var(--m-halo);
   box-shadow: 0 0 0 2px var(--m-me);
   flex: none;
   margin: 0 9px;
 }
 
+.swatch-dot {
+  width: 16px;
+  height: 16px;
+  margin: 0 10px;
+  border-radius: 50%;
+  background: var(--m-cell);
+  border: 3px solid var(--m-halo);
+  box-shadow: var(--sh-pin);
+  flex: none;
+}
+
+.swatch-dot.sensitive {
+  background: var(--m-halo);
+  border: 3px dashed var(--m-cell-sensitive);
+}
+
+.swatch-place {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: 0 6px;
+  border-radius: 50%;
+  background: var(--c-glass);
+  box-shadow: var(--sh-1);
+  flex: none;
+}
+
+.swatch-place::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: var(--c-ink);
+  transform: rotate(45deg);
+}
+
+.swatch-cluster {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0 4px;
+  border-radius: 50%;
+  background: var(--c-glass);
+  box-shadow: inset 0 0 0 2.5px var(--m-cell), var(--sh-pin);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  flex: none;
+}
+
+/* Your position */
 .me-marker {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: var(--m-me);
-  border: 3px solid #fff;
-  box-shadow: 0 0 0 2px var(--m-me), 0 2px 6px rgba(0, 0, 0, 0.35);
+  border: 3px solid var(--m-halo);
+  box-shadow: 0 0 0 2px var(--m-me), var(--sh-pin);
 }
 
+/* The gate and camps: a small glass diamond. The gate always carries its name (routes start
+   there); camp names appear once you zoom in. Never takes a tap from a sighting dot. */
 .place-marker {
-  display: flex;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--sh-1);
+  pointer-events: none;
+}
+
+.place-marker::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: var(--c-ink);
+  transform: rotate(45deg);
+}
+
+.place-name {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 6px);
+  transform: translateY(-50%);
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px 2px 4px;
+  min-height: 26px;
+  padding: 0 11px;
   border-radius: var(--r-pill);
-  background: var(--c-surface);
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--sh-1);
   color: var(--c-ink);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 700;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  line-height: 1;
   white-space: nowrap;
 }
 
-.cell-label {
-  padding: 2px 8px;
-  border-radius: var(--r-pill);
-  background: var(--c-surface);
-  color: var(--c-ink);
-  border: 2px solid var(--m-cell);
-  font-size: 12px;
-  font-weight: 700;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  white-space: nowrap;
+.place-camp .place-name {
+  display: none;
+}
+
+.map-zoomed .place-camp .place-name {
+  display: inline-flex;
+}
+
+.place-marker.name-hidden .place-name,
+.map-zoomed .place-camp.name-hidden .place-name {
+  display: none;
+}
+
+/* Sighting dots. The marker is a 40px tap area with a small dot in the middle; the dot marks the
+   middle of the published area, never the animal. Sensitive species are a dashed ring. */
+.pin-wrap {
+  width: 40px;
+  height: 40px;
+}
+
+.pin-wrap.is-selected {
+  z-index: 3;
+}
+
+.pin {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
   cursor: pointer;
 }
 
-.labels-compact .cell-label {
+.pin::before {
+  content: "";
   width: 16px;
   height: 16px;
+  border-radius: 50%;
+  background: var(--m-cell);
+  border: 3px solid var(--m-halo);
+  box-shadow: var(--sh-pin);
+  transition: transform var(--dur) var(--ease);
+}
+
+.pin:hover::before {
+  transform: scale(1.18);
+}
+
+.pin-sensitive::before {
+  background: var(--m-halo);
+  border: 3px dashed var(--m-cell-sensitive);
+}
+
+.pin-wrap.is-selected .pin::before {
+  width: 22px;
+  height: 22px;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--m-cell) 30%, transparent), var(--sh-pin);
+}
+
+.pin-wrap.is-selected .pin-sensitive::before {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--m-cell-sensitive) 30%, transparent), var(--sh-pin);
+}
+
+.pin:focus-visible,
+.pin-cluster:focus-visible {
+  outline: 3px solid var(--c-focus);
+  outline-offset: 0;
+}
+
+.pin-label {
+  position: absolute;
+  top: 50%;
+  left: calc(50% + 12px);
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--sh-2);
+  color: var(--c-ink);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.pin-label-left {
+  left: auto;
+  right: calc(50% + 12px);
+}
+
+.pin-label:hover {
+  background: var(--c-surface-solid);
+  color: var(--c-accent-text);
+}
+
+/* Several sightings close together: one numbered bubble; tapping it zooms in */
+.pin-cluster {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
   padding: 0;
-  font-size: 0;
-  border-width: 3px;
-  background: var(--c-surface);
+  border: 0;
+  border-radius: 50%;
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 0 0 2.5px var(--m-cell), var(--sh-pin);
+  color: var(--c-ink);
+  font: 700 var(--fs-sm) / 1 var(--font-ui);
+  cursor: pointer;
 }
 
-.cell-label.sensitive {
-  border-color: var(--m-cell-sensitive);
-  border-style: dashed;
+.pin-cluster:hover {
+  background: var(--c-surface-solid);
 }
 
-.maplibregl-ctrl-attrib {
+/* MapLibre's own controls, on the same glass. MapLibre's stylesheet loads after this one, so these
+   are scoped to the map to outrank it. */
+.map-canvas .maplibregl-ctrl.maplibregl-ctrl-attrib {
+  border-radius: var(--r-pill);
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--sh-1);
+  color: var(--c-ink-2);
   font-size: 11px;
+}
+
+.map-canvas .maplibregl-ctrl-attrib a {
+  color: var(--c-ink-2);
+}
+
+.map-canvas .maplibregl-ctrl-attrib.maplibregl-compact {
+  min-height: 28px;
+}
+
+[data-theme="dark"] .map-canvas .maplibregl-ctrl-attrib-button {
+  filter: invert(1);
+}
+
+.map-canvas .maplibregl-ctrl.maplibregl-ctrl-scale {
+  border-color: var(--c-ink-2);
+  background: var(--c-glass);
+  color: var(--c-ink);
+  font-size: 11px;
+}
+
+.map-canvas .maplibregl-ctrl-bottom-left,
+.map-canvas .maplibregl-ctrl-bottom-right {
+  margin-bottom: var(--map-bottom);
+}
+
+.map-canvas .maplibregl-ctrl-bottom-left {
+  margin-left: var(--s-1);
+}
+
+/* The notice at the bottom left never runs under the map buttons on the right */
+.map-canvas .maplibregl-ctrl-bottom-left {
+  max-width: calc(100% - 92px);
+}
+
+.map-canvas .maplibregl-ctrl-attrib-inner {
+  white-space: normal;
+}
+
+@media (max-width: 359px) {
+  .map-controls {
+    right: var(--s-2);
+  }
+
+  .map-controls .icon-btn {
+    width: var(--tap);
+    height: var(--tap);
+  }
 }
 
 /* Cell thumbnail */
@@ -1032,13 +1469,18 @@ a.status-tile:hover {
   background: var(--c-fill-2);
 }
 
+.status-tile > span:last-child {
+  min-width: 0;
+}
+
 .status-tile .tile-icon {
   display: grid;
   place-items: center;
   width: 44px;
   height: 44px;
-  border-radius: var(--r-md);
-  background: var(--c-fill);
+  border-radius: 50%;
+  background: var(--c-accent-soft);
+  color: var(--c-accent-text);
   flex: none;
 }
 
@@ -1051,7 +1493,7 @@ a.status-tile:hover {
   display: flex;
   flex-direction: column;
   gap: var(--s-4);
-  padding: var(--s-5);
+  padding: var(--s-6) var(--s-5);
   border-radius: var(--r-xl);
   background: var(--c-surface);
   box-shadow: var(--sh-1);
@@ -1061,12 +1503,12 @@ a.status-tile:hover {
   font-size: var(--fs-2xl);
 }
 
-/* QR */
+/* QR: always dark on white, whatever the theme, so any scanner reads it */
 .qr-box {
   align-self: center;
   width: min(100%, 320px);
   padding: var(--s-4);
-  background: #fff;
+  background: var(--qr-paper);
   border-radius: var(--r-lg);
   box-shadow: var(--sh-1);
 }
@@ -1086,7 +1528,8 @@ a.status-tile:hover {
   align-self: center;
   border-radius: var(--r-xl);
   overflow: hidden;
-  background: #111;
+  background: var(--c-code);
+  box-shadow: var(--sh-2);
 }
 
 .scanner video {
@@ -1098,9 +1541,9 @@ a.status-tile:hover {
 .scanner-frame {
   position: absolute;
   inset: 18%;
-  border: 4px solid #fff;
+  border: 4px solid var(--c-on-code);
   border-radius: var(--r-lg);
-  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 999px var(--c-overlay);
 }
 
 /* Progress meter for storage */
@@ -1114,7 +1557,8 @@ a.status-tile:hover {
 .meter > span {
   display: block;
   height: 100%;
-  background: var(--c-accent);
+  border-radius: var(--r-pill);
+  background: var(--c-brand);
 }
 
 /* Trip trace preview */
@@ -1146,4 +1590,26 @@ a.status-tile:hover {
   padding: var(--s-5) var(--s-4);
   text-align: center;
   color: var(--c-ink-2);
+}
+
+/* Windows high contrast and similar: glass loses its edge, so give surfaces a real one */
+@media (forced-colors: active) {
+  .card,
+  .list,
+  .status-tile,
+  .hero-card,
+  .topbar,
+  .bottom-nav,
+  .rail,
+  .map-banner,
+  .map-sheet,
+  .pin-label,
+  .pin-cluster,
+  .place-marker,
+  .btn,
+  .icon-btn,
+  .species-btn,
+  .chip {
+    border: 1px solid CanvasText;
+  }
 }
