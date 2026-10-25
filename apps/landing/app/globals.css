@@ -1,7 +1,8 @@
 @import "../shared/tokens.css";
 
-/* Kori landing site. One long page: a split hero with the app's real map, then sections that
- * alternate between the sand canvas and a surface band. Phone first. */
+/* Kori landing site, soft glass. One long page: a floating glass header, a split hero with the app's
+ * real map in a phone, then sections that alternate between the open wash and a large translucent
+ * panel. Phone first. Colours, radii and type come from the tokens. */
 
 *,
 *::before,
@@ -12,6 +13,7 @@
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  background: var(--c-bg);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -22,12 +24,22 @@ html {
 
 body {
   margin: 0;
-  background: var(--c-bg);
   color: var(--c-ink);
   font-family: var(--font-ui);
   font-size: var(--fs-base);
   line-height: var(--lh-body);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* The canvas wash, on a fixed layer so it stays put as the page scrolls, on every phone. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--wash);
+  pointer-events: none;
 }
 
 h1,
@@ -38,6 +50,7 @@ h3 {
   line-height: var(--lh-tight);
   letter-spacing: -0.015em;
   margin: 0;
+  text-wrap: balance;
 }
 
 h1 {
@@ -57,10 +70,14 @@ a {
   text-underline-offset: 3px;
 }
 
+::selection {
+  background: var(--c-accent-soft);
+}
+
 :focus-visible {
   outline: 3px solid var(--c-focus);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .sr-only {
@@ -75,15 +92,18 @@ a {
 .skip-link {
   position: absolute;
   left: 12px;
-  top: -60px;
+  top: -80px;
   z-index: 100;
-  padding: 12px 16px;
-  background: var(--c-surface);
-  color: var(--c-ink);
-  border-radius: var(--r-md);
+  padding: 12px 20px;
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+  border-radius: var(--r-pill);
+  /* No shadow while hidden: its blur would reach back into the top-left of the screen. */
+  box-shadow: none;
 }
 
 .skip-link:focus {
+  box-shadow: var(--sh-2);
   top: 12px;
 }
 
@@ -105,7 +125,7 @@ a {
   }
 }
 
-/* Logo and header */
+/* Logo and header: a floating glass pill, which stays over the page as it scrolls */
 .kori-logo {
   display: inline-flex;
   align-items: center;
@@ -127,29 +147,41 @@ a {
 
 .site-header {
   position: sticky;
-  top: 0;
+  top: var(--s-3);
   z-index: 20;
-  background: var(--c-bg);
-  border-bottom: 1px solid var(--c-line);
+  padding: var(--s-3) var(--s-3) 0;
 }
 
-.header-row {
+.site-header .header-row {
   display: flex;
   align-items: center;
   gap: var(--s-4);
-  min-height: 68px;
+  min-height: 64px;
+  max-width: 1160px;
+  padding: var(--s-1) var(--s-2) var(--s-1) var(--s-5);
+  border-radius: var(--r-pill);
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  backdrop-filter: var(--glass-blur-strong);
+  box-shadow: var(--sh-2);
+}
+
+@media (max-width: 479px) {
+  .site-header .header-row {
+    padding-left: var(--s-4);
+  }
 }
 
 .site-nav {
   display: none;
-  gap: var(--s-2);
+  gap: var(--s-1);
 }
 
 .site-nav a {
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
-  padding: 0 var(--s-3);
+  padding: 0 var(--s-4);
   color: var(--c-ink-2);
   font-weight: 600;
   text-decoration: none;
@@ -180,14 +212,18 @@ a {
   justify-content: center;
   min-width: var(--tap);
   min-height: var(--tap);
-  border: 1px solid var(--c-line);
+  border: 0;
   border-radius: var(--r-pill);
-  background: var(--c-surface);
+  background: var(--c-fill);
   color: var(--c-ink);
   cursor: pointer;
 }
 
-/* Buttons */
+.theme-toggle:hover {
+  background: var(--c-accent-soft);
+}
+
+/* Buttons: pills. The one primary action is an ink pill. */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -196,9 +232,10 @@ a {
   min-height: var(--tap);
   padding: 0 var(--s-5);
   border-radius: var(--r-pill);
-  border: 2px solid var(--c-line-strong);
-  background: transparent;
-  color: var(--c-ink);
+  border: 0;
+  box-shadow: inset 0 0 0 1.5px var(--c-line-strong);
+  background: var(--c-fill-2);
+  color: var(--c-accent-text);
   font: inherit;
   font-weight: 700;
   text-decoration: none;
@@ -206,24 +243,23 @@ a {
 }
 
 .btn:hover {
-  background: var(--c-fill);
+  background: var(--c-accent-soft);
 }
 
 .btn-primary {
   min-height: var(--tap-lg);
-  border-color: var(--c-accent);
+  box-shadow: none;
   background: var(--c-accent);
   color: var(--c-on-accent);
 }
 
 .btn-primary:hover {
   background: var(--c-accent-hover);
-  border-color: var(--c-accent-hover);
 }
 
 .btn-sm {
   min-height: var(--tap);
-  padding: 0 var(--s-4);
+  padding: 0 var(--s-5);
   white-space: nowrap;
 }
 
@@ -233,7 +269,7 @@ a {
   gap: var(--s-3);
 }
 
-/* Hero */
+/* Hero: a big headline on the open wash */
 .hero {
   padding: var(--s-6) 0 var(--s-7);
 }
@@ -272,8 +308,8 @@ a {
   gap: var(--s-3);
   align-items: flex-start;
   padding: var(--s-3) var(--s-4);
-  border: 2px dashed var(--c-brand);
-  border-radius: var(--r-lg);
+  border: 1.5px dashed var(--c-brand);
+  border-radius: var(--r-md);
   background: var(--c-brand-soft);
   color: var(--c-brand-ink);
   font-size: var(--fs-sm);
@@ -285,24 +321,20 @@ a {
   margin-top: 2px;
 }
 
-/* The phone */
+/* The phone: the app's map, with real glass panels over it */
 .phone {
   justify-self: center;
   width: min(100%, 340px);
-  padding: 12px;
-  border-radius: 44px;
-  background: var(--c-ink);
+  padding: 10px;
+  border-radius: 46px;
+  background: var(--c-device);
   box-shadow: var(--sh-2);
-}
-
-[data-theme="dark"] .phone {
-  background: #3a3128;
 }
 
 .phone-screen {
   position: relative;
   overflow: hidden;
-  border-radius: 32px;
+  border-radius: 36px;
   aspect-ratio: 360 / 520;
   background: var(--m-land-2);
 }
@@ -318,9 +350,11 @@ a {
   top: 14px;
   left: 14px;
   right: 14px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: var(--r-md);
-  background: var(--c-surface);
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   font-size: 0.82rem;
   box-shadow: var(--sh-2);
 }
@@ -330,9 +364,11 @@ a {
   left: 14px;
   right: 14px;
   bottom: 14px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border-radius: var(--r-lg);
-  background: var(--c-surface);
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  backdrop-filter: var(--glass-blur-strong);
   box-shadow: var(--sh-2);
   font-size: 0.9rem;
   display: flex;
@@ -351,25 +387,37 @@ a {
 }
 
 .phone-sheet-note {
-  color: var(--c-ink-3);
+  color: var(--c-ink-2);
   font-size: 0.8rem;
 }
 
-/* Sections */
+/* Sections: open on the wash, or one large translucent panel */
 main > section {
-  padding: var(--s-7) 0;
+  padding: var(--s-6) 0;
 }
 
 @media (min-width: 900px) {
   main > section {
-    padding: var(--s-8) 0;
+    padding: var(--s-7) 0;
   }
 }
 
-.band {
+main > section.band {
+  padding: var(--s-3);
+}
+
+.band > .wrap {
+  max-width: 1160px;
+  padding: var(--s-6) var(--s-5);
+  border-radius: var(--r-xl);
   background: var(--c-surface);
-  border-top: 1px solid var(--c-line);
-  border-bottom: 1px solid var(--c-line);
+  box-shadow: var(--sh-1);
+}
+
+@media (min-width: 720px) {
+  .band > .wrap {
+    padding: var(--s-7) var(--s-7);
+  }
 }
 
 .section-lead {
@@ -466,6 +514,7 @@ main > section {
   height: 14px;
   width: 14px;
   border: 2px dashed var(--m-cell-sensitive);
+  background: color-mix(in srgb, var(--m-cell-sensitive) 14%, transparent);
   margin-left: 8px;
 }
 
@@ -484,7 +533,7 @@ main > section {
   overflow-x: auto;
   border-radius: var(--r-lg);
   box-shadow: var(--sh-1);
-  background: var(--c-surface);
+  background: var(--c-fill-2);
 }
 
 table {
@@ -496,7 +545,7 @@ th,
 td {
   text-align: left;
   vertical-align: top;
-  padding: var(--s-4);
+  padding: var(--s-4) var(--s-5);
   border-bottom: 1px solid var(--c-line);
 }
 
@@ -508,7 +557,7 @@ tr:last-child td {
 thead th {
   font-family: var(--font-display);
   font-size: var(--fs-md);
-  background: var(--c-fill-2);
+  background: var(--c-fill);
 }
 
 .split-table td:first-child {
@@ -530,7 +579,7 @@ thead th {
   display: inline-flex;
   align-items: center;
   min-height: 30px;
-  padding: 0 12px;
+  padding: 0 14px;
   border-radius: var(--r-pill);
   font-size: var(--fs-xs);
   font-weight: 700;
@@ -554,20 +603,20 @@ thead th {
 /* Code */
 .code {
   margin: 0;
-  padding: var(--s-4);
+  padding: var(--s-5);
   overflow-x: auto;
   border-radius: var(--r-lg);
-  background: #1b1611;
-  color: #f5eee2;
+  background: var(--c-code);
+  color: var(--c-on-code);
   font-family: var(--font-mono);
   font-size: 0.86rem;
   line-height: 1.55;
+  box-shadow: var(--sh-1);
 }
 
 /* Footer */
 .site-footer {
-  padding: var(--s-6) 0;
-  border-top: 1px solid var(--c-line);
+  padding: var(--s-6) 0 var(--s-7);
 }
 
 .footer-row {
@@ -582,5 +631,17 @@ thead th {
 @media (max-width: 400px) {
   .header-end .btn-sm {
     display: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .site-header .header-row,
+  .band > .wrap,
+  .phone-banner,
+  .phone-sheet,
+  .btn,
+  .chip,
+  .table-wrap {
+    border: 1px solid CanvasText;
   }
 }
