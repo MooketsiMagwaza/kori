@@ -896,7 +896,7 @@ export default function ParkMap({ to }: Props) {
                 <p className="notice notice-plain">
                   <Icon name="info" size={20} />
                   <span>
-                    Along OpenStreetMap tracks (<strong>{TRACK_STATUS_LABEL.osm}</strong>): a track may be missing, overgrown or closed. Follow park signs and your guide.
+                    Tracks: <strong>{TRACK_STATUS_LABEL.osm}</strong>. Follow park signs and your guide.
                   </span>
                 </p>
               ) : null}
