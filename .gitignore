@@ -43,3 +43,16 @@ __pycache__/
 /ops/backups/evidence/*.json
 /deploy/records/
 /deploy/.current-version
+
+# Park packs and everything downloaded to build them are never committed: a real park is covered
+# publicly only after DWNP agrees (KO-09, KO-14). Packs are built outside the repository
+# (tools/map-pack); these rules catch one copied in by mistake.
+*.pmtiles
+*.mbtiles
+*.npy
+/packs/
+/packs-local/
+/tools/map-pack/out/
+/tools/map-pack/downloads/
+apps/*/public/packs/
+apps/*/public/packs-local/
