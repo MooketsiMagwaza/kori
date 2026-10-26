@@ -1,6 +1,11 @@
 "use client";
 
-/** The field app's frame: a top bar and bottom bar on phones, a left rail on wide screens. */
+/**
+ * The field app's frame: a top bar and bottom bar on phones, a left rail on wide screens. The Day and
+ * Night switch is not in either: it is a small floating button at the bottom left, above the dock (the
+ * map's own buttons are at the bottom right). On screens with text fields it is placed at the end of the
+ * page instead, so it can never sit over a field.
+ */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -15,6 +20,10 @@ const LINKS: { href: string; label: string; icon: IconName; log?: boolean }[] = 
   { href: "/sightings", label: "Sightings", icon: "sighting" },
   { href: "/offline", label: "Offline", icon: "download" },
 ];
+
+// Screens with text fields. A floating button could cover a field (or the keyboard's target), so on these
+// the switch is placed in the flow, at the end of the page.
+const FORM_PAGES = ["/log", "/scan"];
 
 function isCurrent(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -49,6 +58,8 @@ export function ConnectionPill() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const inForm = FORM_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`));
   return (
     <div className="shell">
       <a className="skip-link" href="#main">
@@ -60,7 +71,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
         <div className="topbar-end">
           <ConnectionPill />
-          <ThemeToggle />
         </div>
       </header>
       <aside className="rail" aria-label="Main">
@@ -72,15 +82,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="rail-end">
           <ConnectionPill />
-          <ThemeToggle withLabel />
         </div>
       </aside>
       <main id="main" className="main" tabIndex={-1}>
         {children}
+        {inForm ? (
+          <div className="page-foot">
+            <ThemeToggle placement="inline" />
+          </div>
+        ) : null}
       </main>
       <nav className="bottom-nav" aria-label="Main sections">
         <NavLinks />
       </nav>
+      {inForm ? null : <ThemeToggle />}
     </div>
   );
 }

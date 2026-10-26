@@ -13,6 +13,23 @@ export default function AboutPage() {
         <p className="muted">The rules Kori follows, and what in this prototype is real.</p>
       </div>
 
+      <section id="demo-data" aria-labelledby="demo-h">
+        <h2 id="demo-h">About the demo data</h2>
+        <div className="card">
+          <p>
+            Everything you see in this demo is sample data. The reserve, the sightings, the observers and the reviews are invented.
+          </p>
+          <p>
+            <strong>The reserve is fictional.</strong> Its tracks and places are generated and do not match the ground at its coordinates. Do not navigate by it.
+          </p>
+          <p>
+            The backend (the API, the database, and the review and publication rules) is built and tested, but it is not deployed and the apps do not call it yet. Nothing you log is
+            sent anywhere: it stays on this phone.
+          </p>
+          <p className="faint">What does work for real is listed under &ldquo;What is real in this prototype&rdquo;, further down this page.</p>
+        </div>
+      </section>
+
       <section>
         <h2>Animals come first</h2>
         <ul className="muted" style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 8 }}>

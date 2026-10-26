@@ -1,7 +1,21 @@
 /** Small presentational pieces used across screens. */
 
+import Link from "next/link";
 import type { SightingStatus } from "@/shared/rules";
 import { Icon } from "@/shared/icons";
+
+/**
+ * A small neutral chip that says "Demo data" and links to the plain statement of what is sample data
+ * (the About page). It replaces the dashed notices on the map and the sighting page: the label is
+ * always there and one tap from the full explanation, but it does not take space or shout.
+ */
+export function DemoDataChip() {
+  return (
+    <Link href="/about#demo-data" className="demo-chip">
+      Demo data
+    </Link>
+  );
+}
 
 export function SampleNote({ children }: { children?: React.ReactNode }) {
   return (
