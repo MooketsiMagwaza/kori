@@ -1,4 +1,5 @@
 @import "../shared/tokens.css";
+@import "../shared/chrome.css";
 
 /* Kori API docs, soft glass: a reading layout. A floating glass bar on top; a glass side navigation
  * on wide screens and a scrolling row of pills on phones. Colours, radii and type come from the tokens. */
@@ -141,24 +142,6 @@ a {
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
   font-weight: 700;
-}
-
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--tap);
-  min-height: var(--tap);
-  margin-left: auto;
-  border: 0;
-  border-radius: var(--r-pill);
-  background: var(--c-fill);
-  color: var(--c-ink);
-  cursor: pointer;
-}
-
-.theme-toggle:hover {
-  background: var(--c-accent-soft);
 }
 
 /* The bar floats over the page as it scrolls, so it is glass */

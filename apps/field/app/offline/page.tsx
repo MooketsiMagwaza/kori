@@ -160,6 +160,13 @@ export default function OfflinePage() {
             </div>
           </li>
         </ul>
+        <p className="notice notice-warn">
+          <Icon name="alert" size={20} />
+          <span>
+            <strong>The sample reserve is fictional.</strong> Its tracks do not match the ground. Do not navigate by it.{" "}
+            <Link href="/about#demo-data">About the demo data</Link>
+          </span>
+        </p>
         {packError ? <p className="notice notice-bad">{packError}</p> : null}
         {data?.pack ? (
           <Link href="/map" className="btn" style={{ alignSelf: "flex-start" }}>

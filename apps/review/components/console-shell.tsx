@@ -32,7 +32,6 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-        <ThemeToggle />
       </header>
       <p className="console-proto">
         <Icon name="info" size={18} />
@@ -41,6 +40,7 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
       <main id="main" tabIndex={-1} className="console-main">
         {children}
       </main>
+      <ThemeToggle />
     </div>
   );
 }

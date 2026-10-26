@@ -1,4 +1,5 @@
 @import "../shared/tokens.css";
+@import "../shared/chrome.css";
 
 /* Kori field app, soft glass. Phone first: a floating pill bar on top and a floating pill dock at the
  * bottom on phones, a floating rail on wide screens. Cards are translucent but not blurred; blur is
@@ -359,29 +360,7 @@ a {
   }
 }
 
-/* Theme and status in the bars */
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s-2);
-  min-width: var(--tap);
-  min-height: var(--tap);
-  padding: 0 var(--s-2);
-  border: 0;
-  border-radius: var(--r-pill);
-  background: var(--c-fill);
-  color: var(--c-ink);
-  font: inherit;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.theme-toggle:hover {
-  background: var(--c-accent-soft);
-}
-
+/* Connection status. The Day and Night button is the floating one in chrome.css (bottom right). */
 .conn {
   display: inline-flex;
   align-items: center;

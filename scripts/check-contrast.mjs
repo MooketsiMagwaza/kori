@@ -155,6 +155,13 @@ function check(name, t, noBlur) {
   const selected = [...canvas, ...onSurface].map((s) => ({ name: `selected on ${s.name}`, c: over(c("--c-accent-soft"), s.c) }));
   worst(tag, "link text on the selected fill", c("--c-accent-text"), selected, 4.5);
   worst(tag, "ink on the selected fill", c("--c-ink"), selected, 4.5);
+  // Chips and buttons that sit on the glass over the map: the "No park pack" button, the "Demo data" chip
+  // and the "Pack 18 KB" row at the bottom of the map, and the Day and Night button in its hover state.
+  worst(tag, "link text on glass", c("--c-accent-text"), floating, 4.5);
+  const selectedGlass = floating.map((s) => ({ name: `selected fill on ${s.name}`, c: over(c("--c-accent-soft"), s.c) }));
+  worst(tag, "link text on the selected fill, over glass", c("--c-accent-text"), selectedGlass, 4.5);
+  const fillGlass = floating.map((s) => ({ name: `chip on ${s.name}`, c: over(c("--c-fill"), s.c) }));
+  worst(tag, "secondary ink on a neutral chip, over glass", c("--c-ink-2"), fillGlass, 4.5);
   worst(tag, "focus ring (3:1 graphic)", c("--c-focus"), [...everywhere, ...floating], 3, "graphic");
   worst(tag, "input and button edge (3:1 graphic)", c("--c-line-strong"), [...everywhere, ...floating], 3, "graphic");
   const fill = [...canvas, ...onSurface].map((s) => ({ name: `chip on ${s.name}`, c: over(c("--c-fill"), s.c) }));

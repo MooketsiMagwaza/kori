@@ -26,7 +26,6 @@ export function DocsShell({ children }: { children: React.ReactNode }) {
           <span className="kori-logo-word">Kori</span>
           <span className="docs-tag">API</span>
         </Link>
-        <ThemeToggle />
       </header>
       <div className="docs-body">
         <nav className="docs-nav" aria-label="Documentation">
@@ -43,6 +42,7 @@ export function DocsShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+      <ThemeToggle />
     </div>
   );
 }

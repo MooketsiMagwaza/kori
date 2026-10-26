@@ -1,4 +1,5 @@
 @import "../shared/tokens.css";
+@import "../shared/chrome.css";
 
 /* Kori field app, soft glass. Phone first: a floating pill bar on top and a floating pill dock at the
  * bottom on phones, a floating rail on wide screens. Cards are translucent but not blurred; blur is
@@ -16,6 +17,13 @@
   /* Layout constants for the floating bars (not design tokens) */
   --topbar-h: 76px;
   --dock-space: calc(104px + env(safe-area-inset-bottom));
+
+  /* The Day and Night button floats at the bottom left. On a phone it sits just above the dock, in the
+     row of the map's own buttons (which are at the bottom right); --fab-clear is how far the map's
+     bottom-left items (scale bar, "Demo data" row) are pushed in so they sit beside it, never under it. */
+  --fab-bottom: calc(var(--dock-space) - var(--s-3));
+  --fab-left: max(var(--s-3), env(safe-area-inset-left));
+  --fab-clear: calc(var(--fab-left) + var(--tap) + var(--s-2));
 }
 
 html {
@@ -299,6 +307,10 @@ a {
 @media (min-width: 960px) {
   :root {
     --dock-space: 0px;
+    /* No dock here: the button floats at the bottom left of the page area, to the right of the rail. */
+    --fab-bottom: calc(var(--s-4) + var(--s-3));
+    --fab-left: calc(124px + var(--s-3));
+    --fab-clear: calc(var(--s-3) + var(--tap) + var(--s-2));
   }
 
   .shell {
@@ -359,29 +371,26 @@ a {
   }
 }
 
-/* Theme and status in the bars */
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s-2);
-  min-width: var(--tap);
-  min-height: var(--tap);
-  padding: 0 var(--s-2);
-  border: 0;
-  border-radius: var(--r-pill);
-  background: var(--c-fill);
-  color: var(--c-ink);
-  font: inherit;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  cursor: pointer;
+/* The Day and Night button (shared look in chrome.css), placed here at the bottom left, above the dock */
+.theme-fab {
+  right: auto;
+  left: var(--fab-left);
+  bottom: var(--fab-bottom);
 }
 
-.theme-toggle:hover {
-  background: var(--c-accent-soft);
+/* The link target of "Demo data": land below the floating top bar, not under it */
+#demo-data {
+  scroll-margin-top: calc(var(--topbar-h) + var(--s-3));
 }
 
+/* On screens with text fields the button is in the flow instead (.theme-fab-inline), at the end of the page */
+.page-foot {
+  max-width: 760px;
+  margin: calc(-1 * var(--s-5)) auto 0;
+  padding: 0 var(--s-4) var(--s-5);
+}
+
+/* Connection status in the bars */
 .conn {
   display: inline-flex;
   align-items: center;
@@ -513,6 +522,12 @@ section {
 .notice svg {
   flex: none;
   margin-top: 2px;
+}
+
+/* A link inside a notice keeps the notice colour, which is the pair the contrast check measures */
+.notice a {
+  color: inherit;
+  font-weight: 700;
 }
 
 .notice-warn {
@@ -964,6 +979,14 @@ textarea {
 /* Map. On phones it runs under the floating dock; on wide screens it is a framed panel. */
 .map-page {
   --map-bottom: calc(var(--dock-space) + var(--s-1));
+  /* Where the bottom of the Day and Night button is, measured inside the map (on a phone the map runs
+     under the dock, to the bottom of the screen; on wide screens it is a framed panel 12px above it).
+     The "Demo data" row sits beside the button, on its centre line; sheets sit above it. */
+  --fab-in-map: var(--fab-bottom);
+  --foot-h: 36px;
+  --foot-bottom: calc(var(--fab-in-map) + (var(--tap) - var(--foot-h)) / 2);
+  --scale-h: 26px;
+  --sheet-bottom: calc(var(--foot-bottom) + var(--foot-h) + var(--s-1) + var(--scale-h) + var(--s-2));
   position: relative;
   height: calc(100dvh - var(--topbar-h));
   min-height: 420px;
@@ -975,6 +998,7 @@ textarea {
 @media (min-width: 960px) {
   .map-page {
     --map-bottom: var(--s-4);
+    --fab-in-map: var(--s-4);
     height: calc(100dvh - var(--s-5));
     margin: var(--s-3) var(--s-3) var(--s-3) 0;
     border-radius: var(--r-xl);
@@ -1025,6 +1049,126 @@ textarea {
   color: var(--c-accent-text);
 }
 
+/* The one slim line near the top while there is no pack: "No park pack" and the button that gets one.
+   It is glass over the map, a single row, and gone once the pack is on the phone, so the map fills
+   the screen. The button is the full height of the chip, so its tap target is 48px. */
+.map-chip {
+  display: flex;
+  align-items: stretch;
+  align-self: flex-start;
+  max-width: 100%;
+  min-height: var(--tap);
+  border-radius: var(--r-pill);
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--sh-2);
+  font-size: var(--fs-sm);
+  overflow: hidden;
+}
+
+.map-chip-text {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-3) 0 var(--s-4);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.map-chip-text svg {
+  flex: none;
+  color: var(--c-accent-text);
+}
+
+.map-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--c-accent-soft);
+  color: var(--c-accent-text);
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+
+.map-chip-btn:hover {
+  background: var(--c-surface-solid);
+}
+
+.map-chip-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* The attribution row, bottom left, beside the Day and Night button: "Demo data", the pack size once
+   there is one, and the (i) that opens the map's information. One slim glass pill. */
+.map-foot {
+  position: absolute;
+  left: var(--fab-clear);
+  bottom: var(--foot-bottom);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  max-width: calc(100% - var(--fab-clear) - 76px);
+  min-height: var(--foot-h);
+  padding: 0 var(--s-1);
+  border-radius: var(--r-pill);
+  background: var(--c-glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--sh-1);
+}
+
+.map-foot .demo-chip {
+  flex: none;
+  min-height: 28px;
+}
+
+.map-foot-text {
+  min-width: 0;
+  padding: 0 var(--s-2);
+  overflow: hidden;
+  color: var(--c-ink-2);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-foot-i {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--c-accent-text);
+  cursor: pointer;
+}
+
+.map-foot-i::after {
+  content: "";
+  position: absolute;
+  inset: -10px -4px;
+}
+
+.map-foot-i:hover,
+.map-foot-i[aria-expanded="true"] {
+  background: var(--c-accent-soft);
+}
+
 .map-controls {
   position: absolute;
   right: var(--s-3);
@@ -1054,7 +1198,8 @@ textarea {
   position: absolute;
   left: var(--s-3);
   right: 84px;
-  bottom: var(--map-bottom);
+  /* Above the Day and Night button, the "Demo data" row and the scale bar, never over them */
+  bottom: var(--sheet-bottom);
   z-index: 5;
   max-width: 460px;
   max-height: 55%;
@@ -1363,54 +1508,24 @@ textarea {
   background: var(--c-surface-solid);
 }
 
-/* MapLibre's own controls, on the same glass. MapLibre's stylesheet loads after this one, so these
-   are scoped to the map to outrank it. */
-.map-canvas .maplibregl-ctrl.maplibregl-ctrl-attrib {
-  border-radius: var(--r-pill);
-  background: var(--c-glass);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  box-shadow: var(--sh-1);
-  color: var(--c-ink-2);
-  font-size: 11px;
-}
-
-.map-canvas .maplibregl-ctrl-attrib a {
-  color: var(--c-ink-2);
-}
-
-.map-canvas .maplibregl-ctrl-attrib.maplibregl-compact {
-  min-height: 28px;
-}
-
-[data-theme="dark"] .map-canvas .maplibregl-ctrl-attrib-button {
-  filter: invert(1);
-}
-
+/* MapLibre's scale bar, on the same glass. MapLibre's stylesheet loads after this one, so these are
+   scoped to the map to outrank it. The scale bar sits in the bottom-left corner, pushed in so it
+   clears the Day and Night button, and above the "Demo data" row. */
 .map-canvas .maplibregl-ctrl.maplibregl-ctrl-scale {
   border-color: var(--c-ink-2);
   background: var(--c-glass);
   color: var(--c-ink);
   font-size: 11px;
-}
-
-.map-canvas .maplibregl-ctrl-bottom-left,
-.map-canvas .maplibregl-ctrl-bottom-right {
-  margin-bottom: var(--map-bottom);
+  margin: 0;
 }
 
 .map-canvas .maplibregl-ctrl-bottom-left {
-  margin-left: var(--s-1);
+  margin-left: var(--fab-clear);
+  margin-bottom: calc(var(--foot-bottom) + var(--foot-h) + var(--s-1));
+  max-width: calc(100% - var(--fab-clear) - 76px);
 }
 
-/* The notice at the bottom left never runs under the map buttons on the right */
-.map-canvas .maplibregl-ctrl-bottom-left {
-  max-width: calc(100% - 92px);
-}
-
-.map-canvas .maplibregl-ctrl-attrib-inner {
-  white-space: normal;
-}
+/* (The sheets' --sheet-bottom leaves --scale-h for the scale bar above the "Demo data" row.) */
 
 @media (max-width: 359px) {
   .map-controls {
@@ -1420,6 +1535,31 @@ textarea {
   .map-controls .icon-btn {
     width: var(--tap);
     height: var(--tap);
+  }
+
+  /* The "No park pack" chip must fit on one line at 305px: a little less type and padding */
+  .map-top {
+    left: var(--s-2);
+    right: var(--s-2);
+  }
+
+  .map-chip {
+    font-size: var(--fs-xs);
+  }
+
+  .map-chip-text {
+    padding: 0 var(--s-2) 0 var(--s-3);
+  }
+
+  .map-chip-btn {
+    padding: 0 var(--s-3);
+  }
+}
+
+/* Below 340px the bottom row has room for the chip and the (i) only; the pack size is in the (i) panel */
+@media (max-width: 339px) {
+  .map-foot-text {
+    display: none;
   }
 }
 
@@ -1602,6 +1742,8 @@ a.status-tile:hover {
   .bottom-nav,
   .rail,
   .map-banner,
+  .map-chip,
+  .map-foot,
   .map-sheet,
   .pin-label,
   .pin-cluster,
