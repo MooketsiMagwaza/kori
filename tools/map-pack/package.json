@@ -1,0 +1,18 @@
+{
+  "name": "kori-map-pack",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Builds a private offline park pack (vector base map, Sentinel-2 imagery, OSM track graph, sample sightings). Packs are never committed.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "inspect": "node inspect-pmtiles.mjs"
+  },
+  "devDependencies": {
+    "@mapbox/vector-tile": "^3.0.0",
+    "pbf": "^5.1.2",
+    "pmtiles": "^4.5.0"
+  }
+}
