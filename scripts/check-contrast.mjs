@@ -201,6 +201,41 @@ function check(name, t, noBlur) {
   worst(tag, "map: sighting dot against its halo (3:1 graphic)", c("--m-cell"), [{ name: "halo", c: c("--m-halo") }], 3, "graphic");
   worst(tag, "map: sensitive dot against its halo (3:1 graphic)", c("--m-cell-sensitive"), [{ name: "halo", c: c("--m-halo") }], 3, "graphic");
   worst(tag, "map: route line against its casing (3:1 graphic)", c("--m-route"), [{ name: "casing", c: c("--m-halo") }], 3, "graphic");
+
+  // A real park pack's base map: roads, OSM tracks and names on the ground.
+  const realGround = [...ground, { name: "map wetland", c: c("--m-wetland") }];
+  worst(tag, "map: base-map road (3:1 graphic)", c("--m-road"), realGround, 3, "graphic");
+  worst(tag, "map: OSM track on the ground (3:1 graphic)", c("--m-track"), realGround, 3, "graphic");
+  worst(tag, "map: name on its halo", c("--m-label"), [{ name: "halo", c: c("--m-halo") }], 4.5);
+  worst(tag, "map: water name on its halo", c("--m-label-water"), [{ name: "halo", c: c("--m-halo") }], 4.5);
+
+  // The hardest case: the satellite layer. Everything drawn over it sits on a halo casing, so each
+  // pair must hold twice: the line (or text) against its casing, and the line or its casing,
+  // whichever stands out more, against the imagery's darkest, middle and lightest colours.
+  const imagery = ["--m-sat-dark", "--m-sat-mid", "--m-sat-light"].map((k) => ({ name: `imagery ${k.slice(8)}`, c: c(k) }));
+  for (const [label, line, min, kind] of [
+    ["OSM track", "--m-track", 3, "graphic"],
+    ["route line", "--m-route", 3, "graphic"],
+    ["park edge", "--m-boundary", 3, "graphic"],
+    ["sighting dot", "--m-cell", 3, "graphic"],
+    ["sensitive dot", "--m-cell-sensitive", 3, "graphic"],
+    ["name", "--m-label", 4.5, "text"],
+    ["water name", "--m-label-water", 4.5, "text"],
+  ]) {
+    cased(tag, `satellite: ${label}`, c(line), c("--m-halo"), imagery, min, kind);
+  }
+}
+
+/** A line or text drawn on a casing (halo), over backgrounds it does not control. */
+function cased(theme, label, line, casing, backgrounds, min, kind) {
+  record(theme, `${label} against its casing`, line, "casing", casing, min, kind);
+  let low = null;
+  for (const bg of backgrounds) {
+    const fg = ratio(line, bg.c) >= ratio(casing, bg.c) ? line : casing;
+    const value = ratio(fg, bg.c);
+    if (!low || value < low.value) low = { value, bg, fg };
+  }
+  record(theme, `${label}, line or casing over the imagery (3:1 graphic)`, low.fg, low.bg.name, low.bg.c, 3, "graphic");
 }
 
 check("Day", day, false);

@@ -4,10 +4,14 @@
  * Routes never leave the graph: the start and the end are snapped to the nearest point on a
  * routable track, and the path between them follows tracks only. Closed tracks are never used.
  * Predicted tracks are left out unless the caller switches them on, and low-confidence predictions
- * are never used. Costs prefer verified tracks over GPS-confirmed ones, and both over predictions.
+ * are never used. Costs prefer verified tracks over GPS-confirmed ones, both over OpenStreetMap
+ * tracks nobody has verified yet, and all of them over predictions. A track OSM tells drivers to
+ * avoid (`caution`) costs four times as much, so a route uses it only when there is no sensible
+ * alternative.
  *
  * The approach (Dijkstra over a graph built from edges) follows the owner's earlier server-side
  * routing code (see PROVENANCE.md); this TypeScript version, the snapping and the cost model are new.
+ * A real park pack has hundreds of junctions, so the queue is a binary heap.
  */
 
 import { distanceMeters, type LonLat } from "./geo.ts";
@@ -31,10 +35,54 @@ export type RouteResult = {
   end: Snap;
 };
 
-const FACTOR: Record<string, number> = { verified: 1, gps: 1.1, "predicted:high": 1.6, "predicted:medium": 2.2 };
+const FACTOR: Record<string, number> = { verified: 1, gps: 1.1, osm: 1.25, "predicted:high": 1.6, "predicted:medium": 2.2 };
+export const CAUTION_FACTOR = 4;
 
 function factor(edge: TrackEdge): number {
-  return edge.status === "predicted" ? FACTOR[`predicted:${edge.confidence}`] ?? Number.POSITIVE_INFINITY : FACTOR[edge.status] ?? Number.POSITIVE_INFINITY;
+  const base = edge.status === "predicted" ? FACTOR[`predicted:${edge.confidence}`] ?? Number.POSITIVE_INFINITY : FACTOR[edge.status] ?? Number.POSITIVE_INFINITY;
+  return edge.caution ? base * CAUTION_FACTOR : base;
+}
+
+/** A small binary min-heap of queue entries, ordered by cost. */
+class Heap {
+  private items: { node: string; cost: number }[] = [];
+
+  get size() {
+    return this.items.length;
+  }
+
+  push(item: { node: string; cost: number }) {
+    const a = this.items;
+    a.push(item);
+    let i = a.length - 1;
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (a[parent].cost <= a[i].cost) break;
+      [a[parent], a[i]] = [a[i], a[parent]];
+      i = parent;
+    }
+  }
+
+  pop(): { node: string; cost: number } {
+    const a = this.items;
+    const top = a[0];
+    const last = a.pop()!;
+    if (a.length) {
+      a[0] = last;
+      let i = 0;
+      for (;;) {
+        const l = 2 * i + 1;
+        const r = l + 1;
+        let m = i;
+        if (l < a.length && a[l].cost < a[m].cost) m = l;
+        if (r < a.length && a[r].cost < a[m].cost) m = r;
+        if (m === i) break;
+        [a[m], a[i]] = [a[i], a[m]];
+        i = m;
+      }
+    }
+    return top;
+  }
 }
 
 export function routableEdges(reserve: Reserve, options: RouteOptions): TrackEdge[] {
@@ -91,7 +139,7 @@ export function routeAlongTracks(reserve: Reserve, from: LonLat, to: LonLat, opt
   // Multi-source Dijkstra: leaving the start point towards either end of its edge.
   const dist = new Map<string, number>();
   const prev = new Map<string, { node: string; edge: TrackEdge } | null>();
-  const queue: { node: string; cost: number }[] = [];
+  const queue = new Heap();
   const push = (node: string, cost: number, via: { node: string; edge: TrackEdge } | null) => {
     if (cost >= (dist.get(node) ?? Number.POSITIVE_INFINITY)) return;
     dist.set(node, cost);
@@ -101,9 +149,8 @@ export function routeAlongTracks(reserve: Reserve, from: LonLat, to: LonLat, opt
   const f0 = factor(startEdge);
   push(startEdge.from, startCum[start.index] * f0, null);
   push(startEdge.to, (startTotal - startCum[start.index]) * f0, null);
-  while (queue.length) {
-    queue.sort((a, b) => a.cost - b.cost);
-    const { node, cost } = queue.shift()!;
+  while (queue.size) {
+    const { node, cost } = queue.pop();
     if (cost > (dist.get(node) ?? Number.POSITIVE_INFINITY)) continue;
     for (const { edge, to: next } of adjacent.get(node) ?? []) push(next, cost + edge.lengthMeters * factor(edge), { node, edge });
   }

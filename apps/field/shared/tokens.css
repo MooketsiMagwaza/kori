@@ -32,6 +32,8 @@
  *   status text on its soft fill (approved, waiting, rejected, sample note)  5.1 / 4.7
  *   focus ring 4.6 / 6.3 and input edges 3.6 / 4.7  (3:1 needed for both)
  *   map lines and sighting areas on the ground      3.3 / 3.7  (3:1 needed)
+ *   a real pack (26 October 2026): base-map roads 3.4 / 3.4; names on their halo 6.3 / 11.1;
+ *   over the satellite imagery, a line or its halo casing against the imagery 3.2 / 3.6
  * The amber and red signals keep 4.5:1 or more as text on the canvas, cards and their soft fills.
  *
  * Components read these names and never hard-code a colour, radius or font size. Anything that
@@ -101,7 +103,7 @@
   --m-pan: #bfe0f6;
   --m-water: #5b9cc7;
   --m-river: #8fc3e4;
-  --m-boundary: #2f7a74;
+  --m-boundary: #2a6f69;
   --m-track: #14343f;
   --m-track-gps: #3a7d96;
   --m-track-predicted: #5f7a84;
@@ -110,6 +112,17 @@
   --m-route: #0b6bb8;
   --m-me: #0b6bb8;
   --m-halo: #ffffff;
+  /* A real park pack's base map: wetland, roads the graph does not carry, and names (on a halo) */
+  --m-wetland: #c6e7e2;
+  --m-road: #5f777e;
+  --m-label: #16323a;
+  --m-label-water: #2a6588;
+  /* Not drawn: the colours the Sentinel-2 imagery puts behind lines and labels, measured from the
+     Savuti pack's zoom 13 tiles (darkest 2%, median, lightest 2%) by tools/map-pack/build_imagery.py.
+     scripts/check-contrast.mjs tests tracks, the route, the park edge and labels against them. */
+  --m-sat-dark: #0e1419;
+  --m-sat-mid: #826769;
+  --m-sat-light: #cdc6b1;
 
   /* Type: a slab serif for titles (field-guide signage), the system face for reading */
   --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -207,6 +220,15 @@
   --m-route: #7cc8ff;
   --m-me: #7cc8ff;
   --m-halo: #000000;
+  --m-wetland: #163a3a;
+  --m-road: #7f9aa2;
+  --m-label: #e6f1f4;
+  --m-label-water: #8fc3e4;
+  /* The imagery at night is dimmed to 60% (IMAGERY_NIGHT_BRIGHTNESS in shared/map-style.ts): the
+     Day measurements scaled by 0.6. */
+  --m-sat-dark: #080c0f;
+  --m-sat-mid: #4e3e3f;
+  --m-sat-light: #7b776a;
   --sh-1: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 8px 24px rgba(0, 0, 0, 0.28);
   --sh-2: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 14px 36px rgba(0, 0, 0, 0.42);
   --sh-pin: 0 1px 5px rgba(0, 0, 0, 0.7);

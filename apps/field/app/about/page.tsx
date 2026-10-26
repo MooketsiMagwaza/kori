@@ -83,11 +83,17 @@ export default function AboutPage() {
         {cleared ? <p className="notice notice-good">Done. Kori&apos;s data on this phone is gone.</p> : null}
       </section>
 
-      <section>
-        <h2>Credits</h2>
+      <section id="credits">
+        <h2>Credits and data licences</h2>
         <p className="faint">
-          Maps by MapLibre GL JS (BSD-3-Clause). Titles in Zilla Slab (SIL Open Font License). QR codes by node-qrcode (MIT), scanning fallback by jsQR (Apache-2.0), storage by idb (ISC).
-          Kori is © 2026 Mooketsi Vincent Magwaza, all rights reserved.
+          Maps by MapLibre GL JS (BSD-3-Clause), read from the phone&apos;s storage with PMTiles (BSD-3-Clause). Titles in Zilla Slab and map labels in Noto Sans (both SIL Open Font
+          License). QR codes by node-qrcode (MIT), scanning fallback by jsQR (Apache-2.0), storage by idb (ISC). Kori&apos;s code is © 2026 Mooketsi Vincent Magwaza, all rights reserved.
+        </p>
+        <p className="faint">
+          <strong>Real park packs</strong> (private for now, never published): map data <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>, available
+          under the Open Database License (ODbL 1.0). A pack&apos;s base map (cut from the Protomaps basemap, an ODbL Produced Work) and its track graph are derived from OpenStreetMap,
+          so they are ODbL too, whatever the licence of Kori&apos;s code. Satellite imagery: contains modified Copernicus Sentinel data 2025 (Sentinel-2, processed by Kori: stretched,
+          reprojected and tiled). The sightings shown on a real pack are sample data.
         </p>
       </section>
     </div>

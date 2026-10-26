@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { isPublic } from "@/shared/rules";
-import { SAMPLE_RESERVE_ID } from "@/shared/reserve";
 import { Icon } from "@/shared/icons";
 import { SampleNote } from "@/components/bits";
 import { SightingRow } from "@/components/sighting-row";
@@ -14,7 +13,7 @@ export default function Home() {
   const { data } = useStoreData(
     async (store) => {
       const at = new Date();
-      const [sightings, outbox, pack, trips, lastSync] = await Promise.all([store.listSightings(at), store.outbox(), store.getPack(SAMPLE_RESERVE_ID), store.trips(), store.lastSyncAttempt()]);
+      const [sightings, outbox, pack, trips, lastSync] = await Promise.all([store.listSightings(at), store.outbox(), store.activePack(), store.trips(), store.lastSyncAttempt()]);
       return { sightings, outbox, pack, trips, lastSync };
     },
     [],
@@ -69,7 +68,7 @@ export default function Home() {
             </span>
             <span>
               <strong>{data?.pack ? "Park pack ready" : "No park pack yet"}</strong>
-              <span className="muted">{data?.pack ? `Sample reserve, ${formatBytes(data.pack.bytes)}. The map works offline.` : "Download the sample pack before you lose signal."}</span>
+              <span className="muted">{data?.pack ? `${data.pack.kind === "pmtiles" ? `${data.pack.name.split(",")[0]} (real map, private)` : "Sample reserve"}, ${formatBytes(data.pack.bytes)}. The map works offline.` : "Download the sample pack before you lose signal."}</span>
             </span>
           </Link>
           <Link href="/trips" className="status-tile">

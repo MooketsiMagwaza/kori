@@ -94,3 +94,31 @@ review), the transit schema migration, the transit seed, and their seven tests.
   `/v1` API, the OpenAPI export, and their tests.
 - The safety and privacy rules, the ADRs, the observability and operations guides, the deploy
   guide, the work-order register, the name gate and the reuse measurement.
+
+## The real map (KO-25, 26 October 2026)
+
+No Tsela code is in this work, and nothing third-party is copied into the repository.
+
+- `tools/map-pack/` is new. `fetch_s2.py` and `fetch_osm.py` follow the approach of the imagery
+  check scripts the owner commissioned on 7 October 2026 (`kori-research/imagery-check-2026-10-07`,
+  outside this repository): the same Earth Search item, the block-aligned Sentinel-2 window and
+  the Overpass retry loop; they were rewritten (a range-request file opener for rasterio, a byte
+  budget checked before any read, a new, empty output folder).
+- The real-pack style in `shared/map-style.ts` is written for Kori on the Protomaps v4 tile schema;
+  no Protomaps style (`@protomaps/basemaps`) code or colours were copied.
+- Packages added from the npm registry, not copied: `pmtiles` (BSD-3-Clause) and
+  `@fontsource/noto-sans` (the Noto Sans fonts, SIL Open Font License 1.1) in the field app;
+  `pmtiles`, `@mapbox/vector-tile` and `pbf` (BSD-3-Clause) for the map-pack inspector. The font
+  files are copied into `apps/field/public/map-fonts` at build time with their licence, and are not
+  committed.
+- Python packages from PyPI, used only to build packs outside the repository: rasterio (with its
+  bundled GDAL), numpy, Pillow, pyproj, shapely, requests.
+- The `pmtiles` command-line tool, v1.31.2 for Windows x86_64, from the official
+  `protomaps/go-pmtiles` GitHub release; its SHA-256
+  (`a658baa4d7e55020aef6ca17bd9ff9faa1582671266b36f58c52db0ac8e785a1`) matched the digest GitHub
+  publishes for that release asset (the release has no separate checksums file). Kept outside the
+  repository.
+- Data in a pack (never committed): OpenStreetMap (ODbL 1.0) through the Protomaps daily build of
+  25 October 2026 and the Overpass API on 26 October 2026; Sentinel-2 L2A scene
+  `S2B_34KHE_20250802_0_L2A` (Copernicus Sentinel data, free with credit) from the AWS open-data
+  bucket through the Earth Search catalogue.

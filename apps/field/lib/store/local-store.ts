@@ -7,15 +7,34 @@
  * - The outbox replays with an idempotency key per sighting (the pattern comes from the owner's
  *   earlier offline outbox; see PROVENANCE.md), stopping at the first network failure so order
  *   is kept.
+ * - A real park pack (private, from the computer serving the app) keeps its graph and sample
+ *   positions here and its PMTiles files in OPFS, or here as Blobs where OPFS cannot be written
+ *   (lib/pack-files.ts). While a real pack is the active one, the sample sightings sit on its
+ *   real ground; otherwise they sit in the sample reserve, exactly as before.
  */
 
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
+import type { LonLat } from "@/shared/geo.ts";
 import { ruleFor, cellFor } from "@/shared/rules.ts";
-import type { Reserve } from "@/shared/reserve.ts";
+import { SAMPLE_RESERVE_ID, type Reserve } from "@/shared/reserve.ts";
 import { sampleSightings, type Sighting } from "@/shared/sample-sightings.ts";
 import type { SharedSighting } from "@/shared/share-code.ts";
+import { checkRoom, deleteOpfsPack, downloadFile, PackFileError, readOpfsFile } from "@/lib/pack-files";
 import { API_URL, SendError, sendSighting } from "./remote";
-import { CHANGED_EVENT, type KoriStore, type NewSighting, type OutboxItem, type PackRecord, type SyncResult, type Trip, type TripPoint } from "./types";
+import {
+  CHANGED_EVENT,
+  type KoriStore,
+  type LocalPackListing,
+  type NewSighting,
+  type OutboxItem,
+  type PackManifest,
+  type PackProgress,
+  type PackRecord,
+  type RealPackRecord,
+  type SyncResult,
+  type Trip,
+  type TripPoint,
+} from "./types";
 
 interface KoriDB extends DBSchema {
   sightings: { key: string; value: Sighting };
@@ -24,10 +43,16 @@ interface KoriDB extends DBSchema {
   packs: { key: string; value: PackRecord };
   trips: { key: string; value: Trip };
   meta: { key: string; value: string };
+  /** PMTiles files of real packs, where OPFS cannot be written. Key: "<pack id>/<file name>". */
+  packFiles: { key: string; value: Blob };
 }
 
 const DB_NAME = "kori-field";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
+const ACTIVE_KEY = "activePack";
+/** Where the computer serving the app offers its private packs (404 on a deployed build). */
+const LOCAL_PACKS = "/packs/local";
+const SAMPLE_PACK_ID = SAMPLE_RESERVE_ID;
 
 function changed() {
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(CHANGED_EVENT));
@@ -39,28 +64,44 @@ function newId(prefix: string): string {
 
 export class LocalStore implements KoriStore {
   private db: Promise<IDBPDatabase<KoriDB>>;
+  /** The active pack's sample positions, kept in memory so listing sightings stays cheap. */
+  private positions: { key: string; value: LonLat[] | null } | null = null;
 
   constructor() {
     this.db = openDB<KoriDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        db.createObjectStore("sightings", { keyPath: "id" });
-        db.createObjectStore("photos", { keyPath: "id" }).createIndex("bySighting", "sightingId");
-        db.createObjectStore("outbox", { keyPath: "id" });
-        db.createObjectStore("packs", { keyPath: "id" });
-        db.createObjectStore("trips", { keyPath: "id" });
-        db.createObjectStore("meta");
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+          db.createObjectStore("sightings", { keyPath: "id" });
+          db.createObjectStore("photos", { keyPath: "id" }).createIndex("bySighting", "sightingId");
+          db.createObjectStore("outbox", { keyPath: "id" });
+          db.createObjectStore("packs", { keyPath: "id" });
+          db.createObjectStore("trips", { keyPath: "id" });
+          db.createObjectStore("meta");
+        }
+        if (oldVersion < 2) db.createObjectStore("packFiles");
       },
     });
   }
 
+  /** Sample positions of the active real pack, or null for the sample reserve. */
+  private async samplePositions(): Promise<LonLat[] | null> {
+    const db = await this.db;
+    const id = (await db.get("meta", ACTIVE_KEY)) ?? "";
+    if (this.positions && this.positions.key === id) return this.positions.value;
+    const pack = id ? await db.get("packs", id) : undefined;
+    const value = pack && pack.kind === "pmtiles" && pack.complete ? pack.samplePositions : null;
+    this.positions = { key: id, value };
+    return value;
+  }
+
   async listSightings(now: Date): Promise<Sighting[]> {
     const own = await (await this.db).getAll("sightings");
-    return [...own, ...sampleSightings(now)].sort((a, b) => Date.parse(b.seenAt) - Date.parse(a.seenAt));
+    return [...own, ...sampleSightings(now, await this.samplePositions())].sort((a, b) => Date.parse(b.seenAt) - Date.parse(a.seenAt));
   }
 
   async getSighting(id: string, now: Date): Promise<Sighting | undefined> {
     const own = await (await this.db).get("sightings", id);
-    return own ?? sampleSightings(now).find((s) => s.id === id);
+    return own ?? sampleSightings(now, await this.samplePositions()).find((s) => s.id === id);
   }
 
   async logSighting(input: NewSighting): Promise<Sighting> {
@@ -201,7 +242,114 @@ export class LocalStore implements KoriStore {
   }
 
   async deletePack(id: string): Promise<void> {
-    await (await this.db).delete("packs", id);
+    const db = await this.db;
+    await deleteOpfsPack(id);
+    const tx = db.transaction(["packs", "packFiles", "meta"], "readwrite");
+    await tx.objectStore("packs").delete(id);
+    for (const key of await tx.objectStore("packFiles").getAllKeys()) if (String(key).startsWith(`${id}/`)) await tx.objectStore("packFiles").delete(key);
+    if ((await tx.objectStore("meta").get(ACTIVE_KEY)) === id) await tx.objectStore("meta").delete(ACTIVE_KEY);
+    await tx.done;
+    this.positions = null;
+    changed();
+  }
+
+  async localPacks(): Promise<LocalPackListing[]> {
+    try {
+      const response = await fetch(LOCAL_PACKS, { cache: "no-store" });
+      if (!response.ok) return [];
+      const body = (await response.json()) as { packs?: LocalPackListing[] };
+      return Array.isArray(body.packs) ? body.packs : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async downloadRealPack(id: string, onProgress?: (progress: PackProgress) => void): Promise<RealPackRecord> {
+    const db = await this.db;
+    const base = `${LOCAL_PACKS}/${encodeURIComponent(id)}`;
+    let manifest: PackManifest;
+    try {
+      const response = await fetch(`${base}/manifest.json`, { cache: "no-store" });
+      if (!response.ok) throw new Error(String(response.status));
+      manifest = (await response.json()) as PackManifest;
+    } catch {
+      throw new PackFileError("The pack's description could not be read from the computer serving it.", "network");
+    }
+    if (manifest.id !== id || manifest.kind !== "real") throw new PackFileError("That is not a Kori park pack.", "integrity");
+    await checkRoom(manifest.totalBytes);
+
+    // Start clean: an earlier, partial download of this pack is removed first.
+    await this.deletePack(id);
+    const record: RealPackRecord = {
+      id,
+      name: manifest.name,
+      version: manifest.version,
+      kind: "pmtiles",
+      bytes: manifest.totalBytes,
+      downloadedAt: new Date().toISOString(),
+      complete: false,
+      storage: "opfs",
+      manifest,
+      data: { id, name: manifest.name, version: manifest.version, notice: manifest.notice, centre: manifest.centre, bounds: manifest.bounds, boundary: [], pans: [], river: [], nodes: [], edges: [], kind: "real" },
+      samplePositions: null,
+    };
+    await db.put("packs", record);
+    changed();
+
+    let overall = 0;
+    try {
+      for (const file of manifest.files) {
+        const before = overall;
+        const report = (received: number) => onProgress?.({ file: file.name, received, total: file.bytes, overall: before + received, overallTotal: manifest.totalBytes });
+        if (file.role === "base" || file.role === "imagery") {
+          const result = await downloadFile(`${base}/${file.name}`, id, file.name, file, (blob) => db.put("packFiles", blob, `${id}/${file.name}`).then(() => undefined), report);
+          record.storage = result.storage;
+        } else {
+          const response = await fetch(`${base}/${file.name}`, { cache: "no-store" }).catch(() => null);
+          if (!response?.ok) throw new PackFileError(`${file.name} could not be downloaded.`, "network");
+          const text = await response.text();
+          report(new Blob([text]).size);
+          if (file.role === "graph") record.data = { ...(JSON.parse(text) as Reserve), kind: "real" };
+          if (file.role === "sightings") record.samplePositions = (JSON.parse(text) as { positions: LonLat[] }).positions;
+        }
+        overall += file.bytes;
+      }
+    } catch (error) {
+      // Leave nothing half-written: the record says incomplete only if removing it fails.
+      await this.deletePack(id).catch(() => undefined);
+      throw error;
+    }
+    record.complete = true;
+    record.downloadedAt = new Date().toISOString();
+    await db.put("packs", record);
+    await db.put("meta", id, ACTIVE_KEY);
+    this.positions = null;
+    await navigator.storage?.persist?.().catch(() => false);
+    changed();
+    return record;
+  }
+
+  async packFile(id: string, name: string): Promise<Blob | null> {
+    const db = await this.db;
+    const pack = await db.get("packs", id);
+    if (!pack || pack.kind !== "pmtiles" || !pack.complete) return null;
+    if (pack.storage === "opfs") return readOpfsFile(id, name);
+    return (await db.get("packFiles", `${id}/${name}`)) ?? null;
+  }
+
+  async activePack(): Promise<PackRecord | null> {
+    const db = await this.db;
+    const id = await db.get("meta", ACTIVE_KEY);
+    const chosen = id ? await db.get("packs", id) : undefined;
+    if (chosen && (chosen.kind !== "pmtiles" || chosen.complete)) return chosen;
+    return (await db.get("packs", SAMPLE_PACK_ID)) ?? null;
+  }
+
+  async setActivePack(id: string | null): Promise<void> {
+    const db = await this.db;
+    if (id) await db.put("meta", id, ACTIVE_KEY);
+    else await db.delete("meta", ACTIVE_KEY);
+    this.positions = null;
     changed();
   }
 
@@ -241,7 +389,8 @@ export class LocalStore implements KoriStore {
 
   async clearAll(): Promise<void> {
     const db = await this.db;
-    const tx = db.transaction(["sightings", "photos", "outbox", "packs", "trips", "meta"], "readwrite");
+    for (const pack of await db.getAll("packs")) if (pack.kind === "pmtiles") await deleteOpfsPack(pack.id);
+    const tx = db.transaction(["sightings", "photos", "outbox", "packs", "trips", "meta", "packFiles"], "readwrite");
     await Promise.all([
       tx.objectStore("sightings").clear(),
       tx.objectStore("photos").clear(),
@@ -249,8 +398,10 @@ export class LocalStore implements KoriStore {
       tx.objectStore("packs").clear(),
       tx.objectStore("trips").clear(),
       tx.objectStore("meta").clear(),
+      tx.objectStore("packFiles").clear(),
     ]);
     await tx.done;
+    this.positions = null;
     changed();
   }
 }

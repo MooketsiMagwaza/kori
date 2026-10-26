@@ -6,7 +6,11 @@
  * only beside the pin that is selected, the one nearest you, or, once you are zoomed in far enough,
  * a pin whose label fits without covering another label or marker.
  *
- * Both functions work in screen pixels and are pure, so they can be tested without a map.
+ * Tapping (the owner's decision of 25 October 2026): one tap on a lone dot opens its sighting; a
+ * tap on a cluster zooms in; a long press on a dot (or a right click, or the context-menu key)
+ * shows a preview card with an "Open" button. See `pressOutcome`.
+ *
+ * These functions work in screen pixels and are pure, so they can be tested without a map.
  */
 
 export type Pin = { id: string; x: number; y: number; sensitive: boolean; name: string };
@@ -131,4 +135,33 @@ export function placeLabels(pins: Pin[], options: LabelOptions): Map<string, Pla
     extra += 1;
   }
   return placed;
+}
+
+/* ---------- pressing a marker ---------- */
+
+/** How long a finger must rest on a dot, without moving, for the preview card. */
+export const LONG_PRESS_MS = 500;
+/** A press that travels further than this was the start of a pan, not a tap. */
+export const TAP_MOVE_PX = 10;
+
+export type PressTarget = "pin" | "cluster";
+export type PressOutcome = "open" | "preview" | "zoom" | "none";
+
+/**
+ * One press on a marker, as the pointer events saw it: how long it was held, how far it moved,
+ * whether the browser raised a context menu for it (a right click, Android's long press, or the
+ * context-menu key), and whether it was cancelled (the map took over the gesture).
+ */
+export type Press = { heldMs: number; movedPx: number; contextMenu?: boolean; cancelled?: boolean };
+
+/**
+ * What a press does. A lone dot opens its sighting on a single tap and shows the preview card on a
+ * long press; a cluster always zooms in; a press that moved or was cancelled does nothing, so
+ * panning the map across a dot never opens it.
+ */
+export function pressOutcome(target: PressTarget, press: Press): PressOutcome {
+  if (press.cancelled || press.movedPx > TAP_MOVE_PX) return "none";
+  if (target === "cluster") return "zoom";
+  if (press.contextMenu || press.heldMs >= LONG_PRESS_MS) return "preview";
+  return "open";
 }

@@ -11,6 +11,7 @@ import { Icon } from "@/shared/icons";
 import { CellThumb } from "@/components/cell-thumb";
 import { reencodePhoto } from "@/lib/photos";
 import { getStore } from "@/lib/store";
+import { useActivePack } from "@/lib/hooks";
 
 const FIRST = ["elephant", "lion", "leopard", "giraffe", "buffalo", "zebra", "wild-dog", "kori-bustard"];
 
@@ -36,6 +37,8 @@ export default function LogPage() {
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const activePack = useActivePack();
+  const realPlace = activePack?.kind === "pmtiles" ? activePack.name.split(",")[0] : null;
 
   useEffect(() => {
     const t = window.setTimeout(() => setWhen(localInputValue(new Date())), 0);
@@ -73,7 +76,8 @@ export default function LogPage() {
   }
 
   function pickDemoSpot() {
-    const tracks = visibleEdges(sampleReserve(), { predicted: false });
+    // A spot beside a track of the pack the map shows: the sample reserve, or a real park pack.
+    const tracks = visibleEdges(activePack?.data ?? sampleReserve(), { predicted: false });
     const edge = tracks[Math.floor(Math.random() * tracks.length)];
     const at = edge.line[Math.floor(edge.line.length / 2)];
     setWhere({ point: [at[0] + (Math.random() - 0.5) * 0.004, at[1] + (Math.random() - 0.5) * 0.004], accuracy: 10, how: "demo" });
@@ -169,14 +173,14 @@ export default function LogPage() {
               <Icon name="locate" size={20} /> {locating ? "Finding you…" : "Use my GPS"}
             </button>
             <button type="button" className="btn" onClick={pickDemoSpot}>
-              <Icon name="pin" size={20} /> Demo spot in the sample reserve
+              <Icon name="pin" size={20} /> {realPlace ? `Demo spot beside a track at ${realPlace}` : "Demo spot in the sample reserve"}
             </button>
           </div>
           {geoError ? <p className="notice notice-warn">{geoError}</p> : null}
           {where ? (
             <div className="well">
               <p>
-                <strong>{where.how === "gps" ? "Your GPS position" : "Demo spot (sample reserve, fictional)"}</strong>
+                <strong>{where.how === "gps" ? "Your GPS position" : realPlace ? `Demo spot (${realPlace}, a real place; the sighting is yours, saved on this phone)` : "Demo spot (sample reserve, fictional)"}</strong>
                 {where.accuracy ? <span className="muted"> · within {formatDistance(where.accuracy)}</span> : null}
               </p>
               {cell ? (
