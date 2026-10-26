@@ -2,9 +2,11 @@
 Mercator tiles, ready for `pmtiles convert`.
 
   1. Reflectance from B04, B03, B02 (DN / 10000; DN 0 is no data and becomes transparent).
-  2. A contrast stretch shared by the three bands (so sand stays sand-coloured rather than being
-     pushed to white), from low and high percentiles of the valid pixels, then a gentle gamma and
-     a small saturation lift. The numbers are printed and recorded in imagery-report.json.
+  2. A contrast stretch: each band's low percentile is subtracted (haze is strongest in blue),
+     then each band is divided by a range part way between the widest band's range and its own
+     (--balance 0 keeps the true reflectance ratios, which look orange on screen in the dry
+     season; 1 balances every band to grey, which looks mauve; 0.5 reads as tan sand and
+     grey-green woodland), then a gentle gamma. The numbers are recorded in imagery-report.json.
   3. A pyramid of 2x box-filtered copies (10, 20, 40 ... m), so a zoomed-out tile averages the
      pixels under it instead of aliasing.
   4. For each tile, every output pixel centre is projected to the scene's UTM zone and sampled
@@ -99,8 +101,9 @@ def main() -> int:
     parser.add_argument("--quality", type=int, default=78)
     parser.add_argument("--low", type=float, default=1.0, help="low percentile for the stretch")
     parser.add_argument("--high", type=float, default=99.3, help="high percentile for the stretch")
-    parser.add_argument("--gamma", type=float, default=0.85)
-    parser.add_argument("--saturation", type=float, default=1.15)
+    parser.add_argument("--balance", type=float, default=0.5, help="0 = shared range (true ratios), 1 = each band its own range")
+    parser.add_argument("--gamma", type=float, default=0.9)
+    parser.add_argument("--saturation", type=float, default=1.0)
     args = parser.parse_args()
     started = time.time()
 
@@ -120,15 +123,16 @@ def main() -> int:
     report = {"source": log["item"], "datetime": log["datetime"], "valid_share": round(float(valid.mean()), 4),
               "scl_cloud_share": round(float(np.isin(scl10, [3, 8, 9, 10]).mean()), 6)}
 
-    # Shared stretch: one low and one high for all three bands, from their pooled percentiles.
+    # Stretch: per-band low, ranges part way between the widest band's and each band's own.
     samples = refl[valid][:: max(1, int(valid.sum() // 2_000_000))]
     lows = np.percentile(samples, args.low, axis=0)
     highs = np.percentile(samples, args.high, axis=0)
-    low, high = float(lows.min()), float(highs.max())
+    ranges = highs - lows
+    used = ranges.max() ** (1 - args.balance) * ranges**args.balance
     report["stretch"] = {"low_percentile": args.low, "high_percentile": args.high, "per_band_low": [round(float(v), 4) for v in lows],
-                         "per_band_high": [round(float(v), 4) for v in highs], "low": round(low, 4), "high": round(high, 4),
-                         "gamma": args.gamma, "saturation": args.saturation}
-    rgb = np.clip((refl - low) / (high - low), 0, 1) ** args.gamma
+                         "per_band_high": [round(float(v), 4) for v in highs], "range_used": [round(float(v), 4) for v in used],
+                         "balance": args.balance, "gamma": args.gamma, "saturation": args.saturation}
+    rgb = np.clip((refl - lows) / used, 0, 1) ** args.gamma
     del refl
     grey = rgb.mean(axis=-1, keepdims=True)
     rgb = np.clip(grey + (rgb - grey) * args.saturation, 0, 1)
@@ -183,12 +187,13 @@ def main() -> int:
                 if not ok.any():
                     continue
                 pixels = (np.clip(sample, 0, 1) * 255 + 0.5).astype(np.uint8)
+                pixels[~ok] = 0  # nothing under transparent pixels, so edge tiles compress well
                 buffer = BytesIO()
                 if ok.all():
-                    Image.fromarray(pixels, "RGB").save(buffer, "WEBP", quality=args.quality, method=6)
+                    Image.fromarray(pixels, "RGB").save(buffer, "WEBP", quality=args.quality, method=4)
                 else:
                     alpha = np.where(ok, 255, 0).astype(np.uint8)[..., None]
-                    Image.fromarray(np.concatenate([pixels, alpha], axis=-1), "RGBA").save(buffer, "WEBP", quality=args.quality, method=6)
+                    Image.fromarray(np.concatenate([pixels, alpha], axis=-1), "RGBA").save(buffer, "WEBP", quality=args.quality, method=4)
                 data = buffer.getvalue()
                 db.execute("INSERT INTO tiles VALUES (?, ?, ?, ?)", (z, tx, (2**z - 1) - ty, data))
                 count += 1
