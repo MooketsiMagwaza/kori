@@ -56,3 +56,5 @@ __pycache__/
 /tools/map-pack/downloads/
 apps/*/public/packs/
 apps/*/public/packs-local/
+# Map label fonts copied from @fontsource/noto-sans at build time
+apps/*/public/map-fonts/
