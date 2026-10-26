@@ -131,7 +131,8 @@ test("the real pack's layers read only tokens, and the satellite switch has some
   }
   const on = satelliteVisibility(true);
   assert.ok(on.find((v) => v.layer === "imagery")?.visible, "the imagery shows with the satellite on");
-  assert.ok(on.some((v) => v.layer === "base-park" && !v.visible), "the mint fill hides under the imagery");
+  assert.ok(on.some((v) => v.layer === "base-roads" && !v.visible), "base-map roads hide; the OSM tracks are drawn over the imagery");
+  assert.ok(!on.some((v) => v.layer === "base-park"), "the park fill stays on, so beyond the imagery's edge the map is not empty");
   assert.ok(!satelliteVisibility(false).find((v) => v.layer === "imagery")?.visible);
   const tracks = MAP_LAYERS.findIndex((l) => l.id === "tracks-osm");
   assert.ok(tracks > MAP_LAYERS.findIndex((l) => l.id === "tracks-osm-casing"), "the casing is drawn first, under the track");

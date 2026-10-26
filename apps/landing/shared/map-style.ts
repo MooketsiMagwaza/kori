@@ -121,15 +121,18 @@ const named = ["has", "name"];
 
 /**
  * The vector base map, drawn under the overlay layers above (between "bg" and "boundary-fill").
+ * Fills and water stay on with the satellite layer: the imagery covers them where it has pixels,
+ * and past the imagery's edge the vector map shows rather than an empty background. Roads and
+ * paths hide, because the OSM tracks are drawn on their casing over the imagery anyway.
  * Kinds come from the Protomaps v4 schema as found in the Savuti extract
  * (tools/map-pack/inspect-pmtiles.mjs): landuse nature_reserve (the park and forest reserves),
  * wetland; water areas and river and stream lines; roads (minor_road, path, aeroway).
  */
 export const REAL_BASE_LAYERS: MapLayerDef[] = [
-  { id: "base-park", type: "fill", source: "base", sourceLayer: "landuse", filter: ["==", ["get", "kind"], "nature_reserve"], paint: {}, colours: { "fill-color": "--m-land" }, satellite: "off" },
-  { id: "base-wetland", type: "fill", source: "base", sourceLayer: "landuse", filter: ["==", ["get", "kind"], "wetland"], paint: {}, colours: { "fill-color": "--m-wetland" }, satellite: "off" },
-  { id: "base-water", type: "fill", source: "base", sourceLayer: "water", filter: isArea, paint: {}, colours: { "fill-color": "--m-pan" }, satellite: "off" },
-  { id: "base-water-edge", type: "line", source: "base", sourceLayer: "water", filter: isArea, paint: { "line-width": 1 }, colours: { "line-color": "--m-water" }, satellite: "off" },
+  { id: "base-park", type: "fill", source: "base", sourceLayer: "landuse", filter: ["==", ["get", "kind"], "nature_reserve"], paint: {}, colours: { "fill-color": "--m-land" } },
+  { id: "base-wetland", type: "fill", source: "base", sourceLayer: "landuse", filter: ["==", ["get", "kind"], "wetland"], paint: {}, colours: { "fill-color": "--m-wetland" } },
+  { id: "base-water", type: "fill", source: "base", sourceLayer: "water", filter: isArea, paint: {}, colours: { "fill-color": "--m-pan" } },
+  { id: "base-water-edge", type: "line", source: "base", sourceLayer: "water", filter: isArea, paint: { "line-width": 1 }, colours: { "line-color": "--m-water" } },
   {
     id: "base-river",
     type: "line",
@@ -139,7 +142,6 @@ export const REAL_BASE_LAYERS: MapLayerDef[] = [
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-width": width(1.2, 4) },
     colours: { "line-color": "--m-river" },
-    satellite: "off",
   },
   // The park edge: dashed, on a halo so it shows on the imagery too.
   { id: "base-park-edge-casing", type: "line", source: "base", sourceLayer: "landuse", filter: ["==", ["get", "kind"], "nature_reserve"], paint: { "line-width": 4 }, colours: { "line-color": "--m-halo" }, satellite: "on" },

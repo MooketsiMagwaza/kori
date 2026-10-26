@@ -1143,19 +1143,36 @@ textarea {
   white-space: nowrap;
 }
 
-/* A real pack's credits are never cut short, so on a phone they wrap onto a second line. */
-.map-foot-text.map-credits {
-  overflow: visible;
-  padding-block: 3px;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  line-height: 1.25;
-  text-overflow: clip;
-  white-space: normal;
+/* A real pack's credits are never cut short: they take their own line under "Demo data" and the (i),
+   and wrap if the pill is narrow. The pill grows, so the sheets above it move up with it. */
+.map-page:has(.map-credits) {
+  --foot-h: 52px;
+  /* Taller than the Day and Night button: line the bottoms up instead of the centres. */
+  --foot-bottom: var(--fab-in-map);
+}
+
+.map-page:has(.map-credit-imagery) {
+  --foot-h: 66px;
 }
 
 .map-foot:has(.map-credits) {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  row-gap: 0;
+  padding: 4px var(--s-1) 5px;
   border-radius: var(--r-lg);
+}
+
+.map-foot-text.map-credits {
+  order: 3;
+  flex: 1 0 100%;
+  overflow: visible;
+  padding: 0 var(--s-2);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .map-foot-i {

@@ -152,6 +152,39 @@ function watchPress(el: HTMLElement, target: "pin" | "cluster", act: (outcome: R
   });
 }
 
+// A real pack has hundreds of junctions, so a route is worked out once per graph, start, end and
+// predicted-track setting, not on every render.
+const routes = new WeakMap<Reserve, Map<string, RouteResult | null>>();
+function cachedRoute(reserve: Reserve, from: LonLat, to: LonLat, includePredicted: boolean): RouteResult | null {
+  let byKey = routes.get(reserve);
+  if (!byKey) routes.set(reserve, (byKey = new Map()));
+  const key = `${from.join(",")}|${to.join(",")}|${includePredicted}`;
+  if (!byKey.has(key)) {
+    if (byKey.size > 40) byKey.clear();
+    byKey.set(key, routeAlongTracks(reserve, from, to, { includePredicted, minConfidence: "high" }));
+  }
+  return byKey.get(key) ?? null;
+}
+
+/**
+ * Frame a real pack so it fills the clear part of the screen (cover) rather than fitting inside it
+ * (contain): a pack's window is wider than a phone held upright, and fitting it would leave bands
+ * of empty map above and below.
+ */
+function coverBounds(map: MapLibreMap, bounds: [number, number, number, number], padding: { top: number; bottom: number; left: number; right: number }) {
+  const camera = map.cameraForBounds(bounds, { padding });
+  if (!camera) return;
+  const { clientWidth: w, clientHeight: h } = map.getContainer();
+  const mx = (lon: number) => (lon + 180) / 360;
+  const my = (lat: number) => {
+    const r = (lat * Math.PI) / 180;
+    return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2;
+  };
+  const boundsAspect = (mx(bounds[2]) - mx(bounds[0])) / (my(bounds[1]) - my(bounds[3]));
+  const screenAspect = Math.max(1, w - padding.left - padding.right) / Math.max(1, h - padding.top - padding.bottom);
+  map.jumpTo({ center: camera.center, zoom: Math.min(13, (camera.zoom ?? 10) + Math.abs(Math.log2(boundsAspect / screenAspect))) });
+}
+
 function applySatellite(map: MapLibreMap, on: boolean) {
   for (const { layer, visible } of satelliteVisibility(on)) if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", visible ? "visible" : "none");
   if (map.getLayer("imagery")) map.setPaintProperty("imagery", "raster-brightness-max", isNight() ? IMAGERY_NIGHT_BRIGHTNESS : 1);
@@ -276,16 +309,12 @@ export default function ParkMap({ to }: Props) {
   const gateLat = gate?.at[1] ?? null;
   const targetLon = target?.cell.centre[0] ?? null;
   const targetLat = target?.cell.centre[1] ?? null;
-  // A real pack has hundreds of junctions, so the route is worked out only when an input changes.
   const startLon = inside && roughLon !== null ? roughLon : gateLon;
   const startLat = inside && roughLat !== null ? roughLat : gateLat;
-  const route: RouteResult | null = useMemo(
-    () =>
-      reserve && targetLon !== null && targetLat !== null && allowed && startLon !== null && startLat !== null
-        ? routeAlongTracks(reserve, [startLon, startLat], [targetLon, targetLat], { includePredicted: showPredicted, minConfidence: "high" })
-        : null,
-    [reserve, targetLon, targetLat, allowed, startLon, startLat, showPredicted],
-  );
+  const route: RouteResult | null =
+    reserve && targetLon !== null && targetLat !== null && allowed && startLon !== null && startLat !== null
+      ? cachedRoute(reserve, [startLon, startLat], [targetLon, targetLat], showPredicted)
+      : null;
   const routeKey = route ? `${route.edgeIds.join(",")}:${Math.round(route.lengthMeters)}` : "";
   const routeRef = useRef<RouteResult | null>(null);
   useEffect(() => {
@@ -373,7 +402,10 @@ export default function ParkMap({ to }: Props) {
     set("pans", layers.pans);
     set("river", layers.river);
     set("tracks", layers.tracks);
-    if (!to) map.fitBounds(reserve.bounds, { padding: framePadding(map, topRef.current), duration: 0 });
+    if (!to) {
+      if (isReal) coverBounds(map, reserve.bounds, framePadding(map, topRef.current));
+      else map.fitBounds(reserve.bounds, { padding: framePadding(map, topRef.current), duration: 0 });
+    }
 
     placeMarkers.current.forEach((m) => m.remove());
     // In a real pack the gates and camps are named by the base map's labels instead.
