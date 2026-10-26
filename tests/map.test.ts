@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { groupPins, labelBox, overlaps, placeLabels, type Pin } from "../shared/map-markers.ts";
-import { CELL_LAYER_IDS, MAP_LAYERS, colourBindings, resolveLayer } from "../shared/map-style.ts";
+import { groupPins, labelBox, LONG_PRESS_MS, overlaps, placeLabels, pressOutcome, TAP_MOVE_PX, type Pin } from "../shared/map-markers.ts";
+import { CELL_LAYER_IDS, MAP_FONT_FILES, MAP_LAYERS, REAL_LAYERS, colourBindings, mapFontFaces, resolveLayer, satelliteVisibility } from "../shared/map-style.ts";
 
 const AREA = { left: 0, top: 0, right: 390, bottom: 800 };
 const pin = (id: string, x: number, y: number, name = "Giraffe"): Pin => ({ id, x, y, sensitive: false, name });
@@ -97,4 +97,54 @@ test("a label box sits beside its pin, on the side it was given", () => {
   assert.ok(right.left > 100 && left.right < 100);
   assert.ok(overlaps(right, { left: right.left + 5, right: right.right + 5, top: right.top, bottom: right.bottom }));
   assert.ok(!overlaps(right, left, 0));
+});
+
+test("one tap on a lone dot opens it, a long press previews it, and a cluster zooms in", () => {
+  assert.equal(pressOutcome("pin", { heldMs: 120, movedPx: 2 }), "open");
+  assert.equal(pressOutcome("pin", { heldMs: LONG_PRESS_MS, movedPx: 3 }), "preview");
+  assert.equal(pressOutcome("pin", { heldMs: 80, movedPx: 0, contextMenu: true }), "preview", "right click or the context-menu key");
+  assert.equal(pressOutcome("cluster", { heldMs: 100, movedPx: 1 }), "zoom");
+  assert.equal(pressOutcome("cluster", { heldMs: 900, movedPx: 1 }), "zoom", "a long press on a cluster still zooms");
+});
+
+test("panning across a dot or a cluster never opens or zooms", () => {
+  assert.equal(pressOutcome("pin", { heldMs: 150, movedPx: TAP_MOVE_PX + 1 }), "none");
+  assert.equal(pressOutcome("pin", { heldMs: 900, movedPx: 40 }), "none");
+  assert.equal(pressOutcome("cluster", { heldMs: 150, movedPx: 25 }), "none");
+  assert.equal(pressOutcome("pin", { heldMs: 100, movedPx: 0, cancelled: true }), "none");
+});
+
+test("a dot that is alone on screen is a pin, so one tap opens it; dots that touch become a cluster", () => {
+  const lone = groupPins([pin("a", 100, 100), pin("b", 300, 300)], 44);
+  assert.deepEqual(lone.pins.map((p) => p.id).sort(), ["a", "b"]);
+  assert.equal(pressOutcome("pin", { heldMs: 100, movedPx: 0 }), "open");
+  const close = groupPins([pin("a", 100, 100), pin("b", 120, 110)], 44);
+  assert.equal(close.clusters.length, 1);
+  assert.equal(close.pins.length, 0, "neither dot opens on a tap; the cluster zooms instead");
+});
+
+test("the real pack's layers read only tokens, and the satellite switch has something to switch", () => {
+  const css = readFileSync(new URL("../shared/tokens.css", import.meta.url), "utf8");
+  for (const layer of REAL_LAYERS) {
+    for (const token of Object.values(layer.colours)) assert.ok(css.includes(`${token}:`), `${layer.id} uses ${token}, which tokens.css does not define`);
+    assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(/i.test(JSON.stringify(layer.paint)), `${layer.id} hard-codes a colour`);
+  }
+  const on = satelliteVisibility(true);
+  assert.ok(on.find((v) => v.layer === "imagery")?.visible, "the imagery shows with the satellite on");
+  assert.ok(on.some((v) => v.layer === "base-park" && !v.visible), "the mint fill hides under the imagery");
+  assert.ok(!satelliteVisibility(false).find((v) => v.layer === "imagery")?.visible);
+  const tracks = MAP_LAYERS.findIndex((l) => l.id === "tracks-osm");
+  assert.ok(tracks > MAP_LAYERS.findIndex((l) => l.id === "tracks-osm-casing"), "the casing is drawn first, under the track");
+});
+
+test("the font files the map names are the ones the build copies and the service worker saves", () => {
+  const copy = readFileSync(new URL("../apps/field/scripts/copy-map-fonts.mjs", import.meta.url), "utf8");
+  const sw = readFileSync(new URL("../apps/field/public/sw.js", import.meta.url), "utf8");
+  for (const file of MAP_FONT_FILES) assert.match(file, /^noto-sans-latin(-ext)?-(400|600)-(normal|italic)\.woff2$/);
+  const variants = (source: string) => JSON.stringify([...source.matchAll(/\["400-normal", "400-italic", "600-normal"\]/g)].length);
+  assert.equal(variants(copy), "1");
+  assert.equal(variants(sw), "1");
+  const faces = mapFontFaces("https://example.test");
+  assert.deepEqual(Object.keys(faces).sort(), ["Noto Sans Italic", "Noto Sans Regular", "Noto Sans SemiBold"]);
+  for (const list of Object.values(faces)) for (const face of list) assert.ok(MAP_FONT_FILES.includes(face.url.split("/").pop()!));
 });
