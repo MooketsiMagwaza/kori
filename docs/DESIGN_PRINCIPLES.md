@@ -43,9 +43,9 @@ Glass is easy to overdo, so there are rules:
 - **The only gradients are the two washes** on the canvas. Never on buttons,
   text, icons or the map.
 - **Blur is for things that float over other content**: the top bar and dock,
-  the rail, map panels and controls, map labels, a sticky console bar. In-flow
-  cards are translucent but not blurred, which keeps low-end Android phones
-  smooth.
+  the rail, map panels and controls, map labels, a sticky console bar, the Day
+  and Night button. In-flow cards are translucent but not blurred, which keeps
+  low-end Android phones smooth.
 - **Anything over text uses `--c-glass`** (blurred) **or `--c-surface-solid`**
   (menus, dialogs), never the translucent `--c-surface`.
 - **Fallbacks are in the tokens.** With `prefers-reduced-transparency`, or in
@@ -80,6 +80,33 @@ Kori keeps its own identity inside that look.
 - **Voice.** Short, plain sentences that name the real thing: the species,
   the time, the track, the cell. No "seamless", "unlock" or "supercharge".
 
+## The top bar and the Day and Night switch
+
+The bars carry navigation and status, not settings (changed 25 October 2026,
+at the owner's request).
+
+- **What is in a bar.** The field app's top bar holds the logo and the
+  connection status; the console bar and the docs bar hold the name and the
+  navigation; the landing header holds the logo, the sections and one button.
+  The Day and Night switch is never in a bar.
+- **The switch is a small floating round button**: 48px, glass (`--c-glass`,
+  blurred, `--sh-2`), a sun in Day and a moon in Night, shown by CSS from
+  `[data-theme]` so the icon is right on first paint. Its accessible name is
+  constant ("Night colours") and `aria-pressed` says whether Night is on. The
+  choice is stored (`kori-theme`) and applied by a script in `<head>` before
+  the first paint, so there is no flash of the wrong theme. It keeps clear of
+  the safe-area insets, and its transitions are off under reduced motion. The
+  code is `shared/theme-toggle.tsx` and `shared/chrome.css`.
+- **Where it floats.** Bottom right on the landing site, the review console and
+  the API docs. In the field app it is at the bottom left: just above the dock
+  on a phone and just right of the rail on a wide screen, because the map's own
+  buttons (position, layers, whole reserve) are at the bottom right. Pages
+  leave room beneath their last row so it never covers content at the end.
+- **It covers nothing.** On the map page the scale bar and the "Demo data" row
+  sit beside it, and sheets (key, route, about) sit above it. On screens with
+  text fields (log a sighting, scan a code) it is placed in the flow at the end
+  of the page instead of floating, so it can never sit over a field.
+
 ## The map
 
 The park map is drawn from the downloaded pack, with no tiles.
@@ -101,12 +128,29 @@ The park map is drawn from the downloaded pack, with no tiles.
   (`shared/map-markers.ts`, tested).
 - **Glass over the map** is `--c-glass` with blur, with ink text, and the
   contrast script checks it over every map area. On phones the map runs under
-  the floating dock, so its controls and notices are offset to clear it.
+  the floating dock, so its controls and sheets are offset to clear it.
+- **The map fills the screen.** Nothing over it is bigger than a one-line chip.
+  While there is no pack on the phone, one slim chip near the top reads "No
+  park pack" beside the button "Download the sample pack"; it is gone once the
+  pack is downloaded. The bottom left is one slim row, beside the Day and Night
+  button: the "Demo data" chip, "Pack 18 KB" once there is a pack, and the (i)
+  that opens "About this map" with the warning that the sample reserve is
+  fictional and must not be navigated by. The map's buttons are at the bottom
+  right.
 
 ## Safety and honesty are part of the design
 
-- **Sample data is labelled where it appears**, not only in a footer, with a
-  dashed green note.
+- **Sample data is labelled, quietly, and the truth is one tap away.** A small
+  neutral "Demo data" chip sits in the landing footer, in the map's attribution
+  row and on sighting pages, and links to "About the demo data" (the Status
+  section of the landing site, the About page of the field app), which says
+  plainly that the reserve, the sightings, the observers and the reviews are
+  invented, that the backend is built but the apps do not call it yet, and
+  that the fictional reserve's tracks do not match the ground. It never takes
+  space over the map and is not a banner in a hero (changed 25 October 2026,
+  because loud notices made a working prototype look fabricated). Lists of
+  sightings keep their small dashed note, and the warning "do not navigate by
+  it" stays in the map's (i) panel and on the Offline and packs page.
 - **Predicted is drawn differently.** Anything predicted (a track from
   imagery, a likelihood) is dashed and muted, labelled "Predicted, not
   verified", and shows its confidence. It is never the default.
@@ -138,6 +182,7 @@ Run it on every new screen, on a phone and on a desktop, in Day and Night.
 - [ ] No glass stacked on glass more than one layer deep; no cards inside cards.
 
 ### Layout
+- [ ] The Day and Night switch is the floating round button, never in a bar; it covers no control, field, scale bar, attribution row or dock.
 - [ ] One filled (ink) button per screen; buttons and chips are pills.
 - [ ] Touch targets 48px or more; the main action 56px.
 - [ ] No row of identical icon cards, no stat banner of giant numbers, no carousels.
@@ -147,6 +192,7 @@ Run it on every new screen, on a phone and on a desktop, in Day and Night.
 ### Map
 - [ ] Sightings are dots or rings, clustered when they would touch; names only when selected, nearby or room allows.
 - [ ] Anything floating over the map is glass with ink text; controls clear the dock.
+- [ ] Nothing over the map is bigger than a one-line chip; the Day and Night button, scale bar, "Demo data" row and sheets do not overlap.
 
 ### Motion
 - [ ] 150 to 200ms, eased, explaining a change. Nothing pulses or bounces.
@@ -160,7 +206,8 @@ Run it on every new screen, on a phone and on a desktop, in Day and Night.
 - [ ] Hidden things (skip link, off-screen panels) cast no visible shadow.
 
 ### Honesty
-- [ ] Sample data says it is sample data on the screen where it appears.
+- [ ] Sample data is labelled where it appears: the neutral "Demo data" chip (landing footer, map attribution row, sighting pages) links to "About the demo data"; no banner in a hero or over the map.
+- [ ] The warning "do not navigate by it" stays in the map's (i) panel and on the Offline and packs page.
 - [ ] Nothing claims to sync, send or verify when it does not.
 - [ ] Predicted features are labelled predicted, with confidence.
 
