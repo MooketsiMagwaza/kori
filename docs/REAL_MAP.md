@@ -115,10 +115,14 @@ with DWNP that there is no rhino area here.
   on a halo (camps, gates, hills, pans, the Savuti Channel, road names from zoom 13). Labels draw
   from font files in the app (`public/map-fonts`, copied from `@fontsource/noto-sans` at build time
   and saved by the service worker) through MapLibre's `font-faces`, so they need no glyph server.
-- **Satellite.** A switch in the layers sheet ("Sentinel-2, 2 August 2025, 10 m pixels. Context
-  only") puts the imagery under the tracks, labels and sightings; base-map roads hide, the park and
-  water fills stay so the map is not blank past the imagery's edge; at night the imagery is dimmed
-  to 80%.
+- **Satellite, by default.** When the pack has imagery, the map opens on the satellite view with the
+  OSM tracks on top (the owner's "proper map", 26 October 2026); the plain map is one tap away (the
+  photo button among the map buttons) and in the layers sheet ("Sentinel-2, 2 August 2025, 10 m
+  pixels. Context only"). The imagery sits under the tracks, labels and sightings; base-map roads
+  hide, the park and water fills stay so the map is not blank past the imagery's edge; at night
+  the imagery is dimmed to 60%. The map opens on the middle of the pack's gates and camps at zoom
+  11 or closer, where the base map has names; park and reserve names show from zoom 8, and the
+  pack's gates (Savuti Gate, Ghoha Gate) are named at every zoom.
 - **Credits on screen.** The bottom row shows "© OpenStreetMap contributors" whenever a real pack is
   drawn and "Contains modified Copernicus Sentinel data 2025" while the imagery is on (wrapping onto
   a second line rather than being cut). The (i) panel and the About page ("Credits and data
@@ -236,6 +240,116 @@ with the paths under `kori-research/real-map/`.
    `https://nido.tail10c51a.ts.net` on the phone with the Tailscale app signed in to the same
    tailnet, download, then go offline. **Never use `tailscale funnel`**: that would publish the
    pack on the internet.
+
+## Rebuild the pack from nothing (hand-off)
+
+For someone who has never seen this work. Everything below runs on Windows (PowerShell shown; the
+scripts are plain Python and Node and run the same elsewhere). Nothing here is committed: the
+downloads and the pack live **outside the repository**, and must never be pushed, published or put
+in a deployed build (a real park is covered publicly only after DWNP agrees).
+
+### 1. Tools
+
+| Tool | Version used | Where from | Size |
+| --- | --- | --- | ---: |
+| Node.js | 24.18 | nodejs.org (already needed for the apps) | |
+| Python | 3.14.6 (3.11 or newer should do) | python.org | |
+| Python packages | rasterio 1.5.2 (its wheel bundles GDAL: no system GDAL), numpy, Pillow, pyproj, shapely, requests | PyPI, into a virtual environment | about 60 MB |
+| `pmtiles` command-line tool | 1.31.2, Windows x86_64 | `https://github.com/protomaps/go-pmtiles/releases/download/v1.31.2/go-pmtiles_1.31.2_Windows_x86_64.zip`; SHA-256 `a658baa4d7e55020aef6ca17bd9ff9faa1582671266b36f58c52db0ac8e785a1` (the digest GitHub shows for the asset) | 17.8 MB zip, 59 MB exe |
+| Microsoft Edge | any recent | already installed; only for the offline proof | |
+
+```
+$R = "C:\path\to\kori-research\real-map"      # any folder OUTSIDE the repository
+New-Item -ItemType Directory -Force "$R\logs","$R\packs" | Out-Null
+python -m venv --without-pip "$R\venv"
+python -m pip --python "$R\venv\Scripts\python.exe" install rasterio numpy pillow pyproj shapely requests
+# pmtiles: download the zip above into a new, empty folder, check it, unzip
+New-Item -ItemType Directory "$R\dl-pmtiles-cli" | Out-Null
+Invoke-WebRequest https://github.com/protomaps/go-pmtiles/releases/download/v1.31.2/go-pmtiles_1.31.2_Windows_x86_64.zip -OutFile "$R\dl-pmtiles-cli\pmtiles.zip"
+(Get-FileHash "$R\dl-pmtiles-cli\pmtiles.zip" -Algorithm SHA256).Hash   # must equal the digest above
+Expand-Archive "$R\dl-pmtiles-cli\pmtiles.zip" "$R\dl-pmtiles-cli\bin"
+cd <repository>\tools\map-pack; npm ci                                   # the inspector's packages
+```
+
+### 2. Downloads (each into its own new, empty folder)
+
+| What | Command | Source | Size, Savuti |
+| --- | --- | --- | ---: |
+| Vector base map | `& "$R\dl-pmtiles-cli\bin\pmtiles.exe" extract https://build.protomaps.com/20261025.pmtiles "$R\dl-protomaps-extract\savuti-base.pmtiles" --bbox=23.95,-18.76,24.47,-18.29` (create the folder first; add `--dry-run` to see the size) | Protomaps daily builds; pick a recent date from `https://build-metadata.protomaps.dev/builds.json` (the planet file is 139 GB, but `extract` reads only the region's byte ranges) | 1.2 MB transferred |
+| OpenStreetMap for the graph | `& "$R\venv\Scripts\python.exe" -I fetch_osm.py --bbox -18.76,23.95,-18.29,24.47 --out-dir "$R\dl-overpass"` | Overpass API (`overpass-api.de`); retries on 429 and 50x | 6.7 MB of JSON |
+| Sentinel-2 | `& "$R\venv\Scripts\python.exe" -I fetch_s2.py --item S2B_34KHE_20250802_0_L2A --utm-window 810220,7928340,861420,7969300 --out-dir "$R\dl-sentinel2" --budget-mb 100` (run once with `--dry-run` to see the exact bytes) | AWS open data `sentinel-cogs`, found through Earth Search (`earth-search.aws.element84.com/v1`, collection `sentinel-2-l2a`) | 86.1 MB read |
+
+Write the extract's start and end times beside it, for the manifest: before the extract,
+`(Get-Date).ToUniversalTime().ToString("s") + "Z" | Out-File "$R\dl-protomaps-extract\extract-started.txt"`,
+and the same into `extract-finished.txt` after it.
+
+### 3. Build the pack
+
+```
+cd <repository>\tools\map-pack
+& "$R\venv\Scripts\python.exe" -I build.py --out-dir "$R\packs\savuti" `
+  --base "$R\dl-protomaps-extract\savuti-base.pmtiles" --extract-log "$R\dl-protomaps-extract" `
+  --osm-dir "$R\dl-overpass" --s2-dir "$R\dl-sentinel2" --pmtiles "$R\dl-pmtiles-cli\bin\pmtiles.exe" `
+  --bbox=-18.76,23.95,-18.29,24.47 --core=23.96,-18.69,24.40,-18.36 --version 2026.10.26 `
+  --python "$R\venv\Scripts\python.exe"
+```
+
+About a minute. It writes `base.pmtiles`, `imagery.pmtiles`, `graph.json`, `sightings.json`,
+`manifest.json` and `build-log.txt` into `$R\packs\savuti` (it refuses a folder inside the
+repository), and its working files into `build\` there, including `imagery-preview.png`, a quick
+look at the stretch. `node inspect-pmtiles.mjs <file.pmtiles> 10 13 15` lists what a vector file
+holds.
+
+### 4. Load it in the field app
+
+```
+cd <repository>\apps\field
+npm ci; npm run build
+$env:KORI_LOCAL_PACKS_DIR = "$R\packs"
+npx next start -H 127.0.0.1 -p 3105
+```
+
+Open `http://localhost:3105/offline` and press Get on the pack, then open the map. Keep
+`-H 127.0.0.1`. Check it with the offline proof:
+`node tools\map-pack\offline-proof.mjs --base http://localhost:3105 --pack savuti --out "$R\shots"`
+(screenshots and `proof.json`; never post them while the park is private). For a phone, see
+"Seeing it" above.
+
+### 5. Another area
+
+1. **Window.** Pick a box in degrees a few km larger than the area. `pmtiles extract --bbox` takes
+   west,south,east,north; `fetch_osm.py` and `build.py --bbox` take south,west,north,east.
+2. **Scene.** Search Earth Search for a clear dry-season scene over the box, for example:
+   ```
+   $body = '{"collections":["sentinel-2-l2a"],"bbox":[W,S,E,N],"datetime":"2025-05-01T00:00:00Z/2025-10-31T23:59:59Z","query":{"eo:cloud_cover":{"lt":5}},"limit":50}'
+   Invoke-RestMethod -Method Post -ContentType application/json -Body $body https://earth-search.aws.element84.com/v1/search
+   ```
+   Choose an item whose footprint covers the box and whose `s2:nodata_pixel_percentage` is low;
+   its `proj:code` (for example EPSG:32734) is the UTM zone for the window.
+3. **Imagery window.** Sentinel-2 files are stored in 1024 x 1024 pixel blocks (10,240 m at 10 m), and
+   only whole blocks can be read, so make the UTM window block-aligned: from the scene's top-left
+   corner (the `transform` of its B04 asset), x and y must be whole multiples of 10,240 m away. Run
+   `fetch_s2.py --dry-run` first: it prints the blocks and bytes and stops above `--budget-mb`
+   (about 1.45 MB per block per band; three bands plus a small SCL band).
+4. **Names.** `build.py --id <lowercase-id> --name "<Place, Park>"`; `build_graph.py` takes
+   `--park "<the protected area's name in OSM>"` (the boundary) and `--start-gate "<gate name>"`.
+5. **Sightings.** `--core` is the box (west,south,east,north) the sample sightings stay inside, about
+   2 km inside the imagery. Before using a new park, list anything sensitive DWNP knows of, pass it
+   as `--exclude` to `place-sightings.ts` (never commit it), and check `rhino.geojson` in `build\`.
+6. **Check.** Look at `build\imagery-preview.png` and `build\graph-report.json` (edges, km, left-out
+   ways, one network or several), then run the offline proof.
+
+### 6. Licences and the credit text
+
+- Base map and graph: **ODbL 1.0**, derived from OpenStreetMap. Show "© OpenStreetMap contributors"
+  on the map whenever they are drawn (the field app does). Anything published from them stays ODbL;
+  Kori's own code licence does not cover the pack.
+- Imagery: Copernicus Sentinel data, free for any use. Show "Contains modified Copernicus Sentinel
+  data 2025" (the year of the scene) whenever it is drawn (the field app does while the imagery is
+  on).
+- The label fonts (Noto Sans) are under the SIL Open Font License; the build copies them with their
+  licence file.
+- Protomaps asks people not to hotlink its daily builds: extract once and keep the file.
 
 ## Safety, privacy and licensing
 
