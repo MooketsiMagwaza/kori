@@ -141,28 +141,31 @@ with DWNP that there is no rhino area here.
 
 `node tools/map-pack/offline-proof.mjs --base http://localhost:3105 --pack savuti --out <shots>`,
 against the production build served with `KORI_LOCAL_PACKS_DIR` on 127.0.0.1, in a fresh headless
-Edge profile driven over the DevTools Protocol. Result on 26 October 2026: **13 of 13 checks
-passed** (`kori-research/real-map/shots/proof.json`).
+Edge profile (SwiftShader rendering) driven over the DevTools Protocol. Final run on 26 October
+2026, after merging the flat Night colours: **16 of 16 checks passed**
+(`kori-research/real-map/shots/proof.json`). Earlier runs that day passed 13 of 13 before the
+satellite default was added.
 
 1. Online, Offline and packs listed the Savuti pack; Get stored `base.pmtiles` (1,146,927 bytes) and
-   `imagery.pmtiles` (8,250,961 bytes) in the browser's OPFS (0.2 to 8 s from localhost). The
-   service worker took control.
+   `imagery.pmtiles` (8,250,961 bytes) in the browser's OPFS (0.2 to 8 s from localhost across the
+   runs). The service worker took control.
 2. The network was cut on the page and on the service worker
    (`Network.emulateNetworkConditions`, offline); `navigator.onLine` was false and the header showed
    "No signal".
-3. The map reloaded from the service worker and drew the stored base map and **697 OSM track
-   features**; "© OpenStreetMap contributors", the Demo data chip and the theme button were on
-   screen.
-4. The satellite switch drew the stored imagery, and the credit row then read "© OpenStreetMap
-   contributors · Contains modified Copernicus Sentinel data 2025".
-5. A route to the sample wild dog area ran **5.1 km along OSM tracks** (47 vertices) from the
-   emulated GPS position near Savuti Gate (`Emulation.setGeolocationOverride`), and the sheet said
-   "OSM, not verified".
+3. The map reloaded from the service worker and drew the stored base map and **850 OSM track
+   features**; the credits ("© OpenStreetMap contributors · Contains modified Copernicus Sentinel
+   data 2025"), the Demo data chip and the theme button were on screen.
+4. **Satellite with the tracks on top was the opening view**, at zoom 11, with **Savuti Gate,
+   Savuti Channel, Pitsi Pan and Savuti Airport named** and the park edge in view. One tap on the
+   photo button showed the plain map, and a second tap brought the imagery back.
+5. A route to the sample wild dog area ran **5.0 to 5.1 km along OSM tracks** (47 vertices), from
+   Savuti Gate or from the emulated GPS position near it (`Emulation.setGeolocationOverride`),
+   depending on whether the fix had arrived; the sheet said "Tracks: OSM, not verified".
 6. A sighting logged with that GPS position was saved and appeared on the map (16 dots to 17).
 7. One tap on a lone dot opened its sighting page.
-8. **Every one of 942 requests went to the app's own origin; none to another host.** Of the 645
-   requests made while offline, 329 were answered by the service worker, 159 failed (as they
-   should, for example the pack list and Next's prefetches) and **none was served by the network**.
+8. **Every one of 1,069 requests went to the app's own origin; none to another host.** Of the 642
+   requests made while offline, 323 were answered by the service worker, 159 failed (as they
+   should: the pack list, Next's prefetches) and **none was served by the network**.
 
 Screenshots (phone 390 x 844 at 2x and desktop 1440 x 900, Day and Night, all taken offline) are in
 `kori-research/real-map/shots/`. They show the private pack, so they are not in this repository
