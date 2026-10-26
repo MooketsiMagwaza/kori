@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SAMPLE_RESERVE_ID } from "@/shared/reserve";
 import { Icon } from "@/shared/icons";
-import { getStore, type SyncResult } from "@/lib/store";
+import { getStore, type PackProgress, type RealPackRecord, type SyncResult } from "@/lib/store";
 import { formatBytes, relativeTime, useNow, useOnline, useStoreData } from "@/lib/hooks";
 
 type StorageInfo = { usage: number; quota: number; persisted: boolean } | null;
@@ -52,10 +52,49 @@ export default function OfflinePage() {
   const [result, setResult] = useState<SyncResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [packError, setPackError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<PackProgress | null>(null);
   const { data } = useStoreData(async (store) => {
-    const [outbox, pack, lastSync] = await Promise.all([store.outbox(), store.getPack(SAMPLE_RESERVE_ID), store.lastSyncAttempt()]);
-    return { outbox, pack: pack ?? null, lastSync };
+    const [outbox, pack, lastSync, packs, active, offered] = await Promise.all([
+      store.outbox(),
+      store.getPack(SAMPLE_RESERVE_ID),
+      store.lastSyncAttempt(),
+      store.packs(),
+      store.activePack(),
+      store.localPacks(),
+    ]);
+    const real = packs.filter((p): p is RealPackRecord => p.kind === "pmtiles");
+    return { outbox, pack: pack ?? null, lastSync, real, activeId: active?.id ?? null, offered };
   }, []);
+
+  // Real packs: those on this phone, and those the computer serving the app offers.
+  const realRows = (() => {
+    if (!data) return [];
+    const rows = new Map<string, { id: string; name: string; bytes: number; stored: RealPackRecord | null }>();
+    for (const p of data.offered) rows.set(p.id, { id: p.id, name: p.name, bytes: p.totalBytes, stored: null });
+    for (const p of data.real) rows.set(p.id, { id: p.id, name: p.name, bytes: p.bytes, stored: p });
+    return [...rows.values()];
+  })();
+
+  async function downloadReal(id: string) {
+    setBusy(true);
+    setPackError(null);
+    try {
+      await getStore().downloadRealPack(id, setProgress);
+      setTick((t) => t + 1);
+    } catch (reason) {
+      setPackError(reason instanceof Error ? reason.message : "The pack could not be downloaded.");
+    } finally {
+      setBusy(false);
+      setProgress(null);
+    }
+  }
+
+  async function removeReal(id: string) {
+    setBusy(true);
+    await getStore().deletePack(id);
+    setTick((t) => t + 1);
+    setBusy(false);
+  }
 
   async function sync() {
     setSyncing(true);
@@ -147,19 +186,83 @@ export default function OfflinePage() {
                 </button>
               )}
             </div>
+            {data?.pack && data.real.some((p) => p.complete) ? (
+              <label className="check" style={{ paddingInline: "var(--s-4)" }}>
+                <input type="radio" name="active-pack" checked={data.activeId === SAMPLE_RESERVE_ID} onChange={() => getStore().setActivePack(null)} />
+                <span>Show on the map</span>
+              </label>
+            ) : null}
           </li>
-          <li>
-            <div className="row">
-              <span style={{ display: "grid", placeItems: "center", width: 48, height: 48, borderRadius: 10, background: "var(--c-fill)" }}>
-                <Icon name="lock" />
-              </span>
-              <span className="row-main">
-                <span className="row-title">Real parks</span>
-                <span className="row-sub">Not available. Kori will cover a park only after asking the Department of Wildlife and National Parks.</span>
-              </span>
-            </div>
-          </li>
+          {realRows.map((row) => {
+            const stored = row.stored;
+            const loading = progress !== null && busy;
+            return (
+              <li key={row.id}>
+                <div className="row">
+                  <span style={{ display: "grid", placeItems: "center", width: 48, height: 48, borderRadius: 10, background: "var(--c-fill)" }}>
+                    <Icon name="map" />
+                  </span>
+                  <span className="row-main">
+                    <span className="row-title">{row.name}</span>
+                    <span className="row-sub">Real map · private · OpenStreetMap tracks (OSM, not verified) · Sentinel-2 imagery</span>
+                    <span className="row-sub">
+                      {stored?.complete
+                        ? `On this phone · ${formatBytes(stored.bytes)} · version ${stored.version}`
+                        : stored
+                          ? "Download did not finish. Get it again, or delete it."
+                          : loading
+                            ? `Downloading ${progress.file} · ${formatBytes(progress.overall)} of ${formatBytes(progress.overallTotal)}`
+                            : `Offered by this computer · ${formatBytes(row.bytes)}`}
+                    </span>
+                  </span>
+                  {stored ? (
+                    <button type="button" className="btn btn-danger" onClick={() => removeReal(row.id)} disabled={busy} aria-label={`Delete the ${row.name} pack`}>
+                      <Icon name="trash" size={20} />
+                    </button>
+                  ) : null}
+                  {!stored?.complete ? (
+                    <button type="button" className="btn" onClick={() => downloadReal(row.id)} disabled={busy || !online}>
+                      <Icon name="download" size={20} /> {loading ? `${Math.floor((progress.overall / Math.max(1, progress.overallTotal)) * 100)}%` : "Get"}
+                    </button>
+                  ) : null}
+                </div>
+                {loading ? (
+                  <div className="meter" aria-hidden="true" style={{ marginInline: "var(--s-4)" }}>
+                    <span style={{ width: `${Math.max(1, (progress.overall / Math.max(1, progress.overallTotal)) * 100)}%` }} />
+                  </div>
+                ) : null}
+                {stored?.complete ? (
+                  <label className="check" style={{ paddingInline: "var(--s-4)" }}>
+                    <input type="radio" name="active-pack" checked={data?.activeId === row.id} onChange={() => getStore().setActivePack(row.id)} />
+                    <span>Show on the map</span>
+                  </label>
+                ) : null}
+              </li>
+            );
+          })}
+          {realRows.length === 0 ? (
+            <li>
+              <div className="row">
+                <span style={{ display: "grid", placeItems: "center", width: 48, height: 48, borderRadius: 10, background: "var(--c-fill)" }}>
+                  <Icon name="lock" />
+                </span>
+                <span className="row-main">
+                  <span className="row-title">Real parks</span>
+                  <span className="row-sub">Not available. Kori will cover a park only after asking the Department of Wildlife and National Parks.</span>
+                </span>
+              </div>
+            </li>
+          ) : null}
         </ul>
+        {realRows.length ? (
+          <p className="notice notice-plain">
+            <Icon name="lock" size={20} />
+            <span>
+              <strong>Real parks are private for now.</strong> This pack comes from the computer serving Kori and stays on your own phone. Kori will cover a park publicly only after asking
+              the Department of Wildlife and National Parks. Map data © OpenStreetMap contributors (ODbL); contains modified Copernicus Sentinel data 2025.
+            </span>
+          </p>
+        ) : null}
         <p className="notice notice-warn">
           <Icon name="alert" size={20} />
           <span>

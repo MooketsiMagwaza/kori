@@ -3,7 +3,7 @@
 /** Small hooks shared by the field app's screens. */
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { CHANGED_EVENT, getStore, type KoriStore } from "@/lib/store";
+import { CHANGED_EVENT, getStore, type KoriStore, type PackRecord } from "@/lib/store";
 
 /** Load data from the store, and reload whenever anything in the store changes. */
 export function useStoreData<T>(load: (store: KoriStore) => Promise<T>, deps: unknown[] = []): { data: T | undefined; error: string | null; reload: () => void } {
@@ -129,4 +129,33 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
+}
+
+let activePackCache: Promise<PackRecord | null> | null = null;
+
+/**
+ * The pack the map draws (a real park pack if one is chosen, else the sample reserve, else null),
+ * shared by every component on the screen and reloaded whenever the store changes. Undefined until
+ * it has loaded.
+ */
+export function useActivePack(): PackRecord | null | undefined {
+  const [pack, setPack] = useState<PackRecord | null | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      activePackCache ??= getStore().activePack();
+      activePackCache.then((value) => alive && setPack(value)).catch(() => alive && setPack(null));
+    };
+    const reload = () => {
+      activePackCache = null;
+      load();
+    };
+    load();
+    window.addEventListener(CHANGED_EVENT, reload);
+    return () => {
+      alive = false;
+      window.removeEventListener(CHANGED_EVENT, reload);
+    };
+  }, []);
+  return pack;
 }
