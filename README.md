@@ -12,8 +12,8 @@ phone to phone with a QR code.
 
 ## What it looks like
 
-Screenshots of the running prototype in Day colours (Night is the same layout in deep
-blue-green, and one button switches between them). Everything on screen is **sample
+Screenshots of the running prototype in Day colours (Night is the same layout in Apple's
+flat dark colours, with no gradient, and one button switches between them). Everything on screen is **sample
 data**: the reserve, the sightings, the observers and the reviews are invented, and the
 reserve is fictional, so it must not be used to navigate. The apps' "Demo data" chips link
 to a plain statement of this. The map screens show that fictional reserve and will be
@@ -77,11 +77,11 @@ On a phone:
   </tr>
   <tr>
     <td width="50%" valign="top" align="center">
-      <img src="docs/screens/field-home-night.webp" alt="The field app's home screen on a phone in Night colours: deep blue-green glass with light text, the same layout as Day, and the floating button showing a moon at the bottom left." width="300"><br>
+      <img src="docs/screens/field-home-night.webp" alt="The field app's home screen on a phone in Night colours: a flat black canvas with dark grey cards and light text, the same layout as Day, and the floating button showing a moon at the bottom left." width="300"><br>
       <sub><b>Night colours</b>, home.</sub>
     </td>
     <td width="50%" valign="top" align="center">
-      <img src="docs/screens/field-map-night.webp" alt="The field app's map on a phone in Night colours: the fictional reserve in dark green with light tracks, numbered clusters of sighting areas, and the Demo data and Pack 18 KB row at the bottom left." width="300"><br>
+      <img src="docs/screens/field-map-night.webp" alt="The field app's map on a phone in Night colours: the fictional reserve in dark green on a black canvas, with light tracks, numbered clusters of sighting areas, and the Demo data and Pack 18 KB row at the bottom left." width="300"><br>
       <sub><b>Night colours</b>, map.</sub>
     </td>
   </tr>

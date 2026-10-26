@@ -24,9 +24,11 @@ follows from that.
 - **Works with no signal, and says so.** The offline state is shown as a
   plain sentence ("No signal. Sightings are saved on this phone."), never as
   an error. The app never spins forever waiting for a network.
-- **Day and Night.** Day is the default in daylight. Night is its own design,
-  deep blue-green glass for dusk and for people who prefer it, not an
-  inversion of Day, and it passes the same contrast checks.
+- **Day and Night.** Day is the default in daylight. Night is for dusk and for
+  people who prefer it: Apple's dark system colours, flat (a black canvas,
+  dark grey cards, system blue for links, system green for Kori's own colour,
+  with no gradient), in the same layout and glass as Day. It passes the same
+  contrast checks.
 
 ## Direction: soft glass, in blue and green
 
@@ -40,8 +42,9 @@ blur.
 
 Glass is easy to overdo, so there are rules:
 
-- **The only gradients are the two washes** on the canvas. Never on buttons,
-  text, icons or the map.
+- **The only gradients are Day's two washes** on the canvas. Night has none
+  (the owner's instruction of 26 October 2026). Never on buttons, text, icons
+  or the map.
 - **Blur is for things that float over other content**: the top bar and dock,
   the rail, map panels and controls, map labels, a sticky console bar, the Day
   and Night button. In-flow cards are translucent but not blurred, which keeps
@@ -172,7 +175,7 @@ Run it on every new screen, on a phone and on a desktop, in Day and Night.
 
 ### Colour
 - [ ] No hard-coded colour in a component: only tokens (`--c-*`, `--m-*`, `--qr-*`).
-- [ ] The only gradients are the two canvas washes. No glow, no neon.
+- [ ] The only gradients are Day's two canvas washes; Night has none. No glow, no neon.
 - [ ] Every colour has a job (act, link and select, brand, state, map data).
 - [ ] `node scripts/check-contrast.mjs` passes; status has a word, not only a colour.
 
