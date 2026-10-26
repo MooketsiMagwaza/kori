@@ -8,28 +8,31 @@
  * surfaces with a white inner edge and a soft blue-grey shadow, large corner radii and pill
  * buttons. The one primary action on a screen is ink; links and selection are a deep teal-blue;
  * Kori's own colour is a green (the mark, "sample data", approved sightings, sighting areas).
- * Night keeps the same washes and the same glass in deep blue-green ink. Blur is for things that
+ * Night is Apple's dark system colours, flat: a black canvas with no wash, #1c1c1e cards, white-grey
+ * labels, the system blue for links and the system green for Kori's own colour. It keeps Day's
+ * glass, radii and layout. Blur is for things that
  * float over other content (navigation, map panels, sticky bars); in-flow cards are translucent
  * but not blurred, which keeps low-end Android phones smooth. People who ask for reduced
  * transparency, and browsers with no backdrop filter, get solid surfaces. The only gradients are
- * the two washes. Amber and red stay as signals (waiting, rejected, sensitive, safety), never as
- * decoration. Kori's slab serif titles and its bustard mark are its own.
+ * Day's two washes; Night has none. Amber and red stay as signals (waiting, rejected, sensitive,
+ * safety), never as decoration. Kori's slab serif titles and its bustard mark are its own.
  *
  * Contrast (WCAG 2.2), measured by `node scripts/check-contrast.mjs`, which composites each
  * translucent surface over the canvas washes (at the strongest corner of the wash, the worst
  * case) and glass over every map area, and reports the lowest ratio. CI runs it, so a pair that
  * drops below AA fails the build. Every pair passes in Day, in Night, and in each with reduced
- * transparency. Figures as measured on 25 October 2026, lowest ratio per pair, Day / Night:
- *   ink on the canvas, cards and glass              13.2 / 9.1
- *   secondary ink                                   7.4 / 6.4
- *   tertiary ink                                    4.7 / 5.0
- *   text on the ink action fill (hover state)       9.9 / 16.3
- *   link text (deep teal-blue)                      6.3 / 6.5
- *   link text on the selected fill                  6.3 / 4.8
- *   status text on its soft fill (approved, waiting, rejected, sample note)  5.1 / 4.6
- *   focus ring 4.6 / 6.5 and input edges 3.6 / 4.0  (3:1 needed for both)
- *   map lines and sighting areas on the ground      3.3 / 3.8  (3:1 needed)
- *   a real pack (26 October 2026): base-map roads 3.4 / 3.4; names on their halo 6.3 / 9.9;
+ * transparency. Figures as measured on 26 October 2026, lowest ratio per pair, Day / Night
+ * (Day's were measured on 25 October and its tokens have not changed since):
+ *   ink on the canvas, cards and glass              13.2 / 14.2
+ *   secondary ink                                   7.4 / 9.2
+ *   tertiary ink                                    4.7 / 7.0
+ *   text on the ink action fill (hover state)       9.9 / 19.2
+ *   link text (deep teal-blue by day, system blue by night)  6.3 / 6.3
+ *   link text on the selected fill                  6.3 / 4.7
+ *   status text on its soft fill (approved, waiting, rejected, sample note)  5.1 / 4.7
+ *   focus ring 4.6 / 6.3 and input edges 3.6 / 4.7  (3:1 needed for both)
+ *   map lines and sighting areas on the ground      3.3 / 3.7  (3:1 needed)
+ *   a real pack (26 October 2026): base-map roads 3.4 / 3.4; names on their halo 6.3 / 11.1;
  *   over the satellite imagery, a line or its halo casing against the imagery 3.2 / 3.6
  * The amber and red signals keep 4.5:1 or more as text on the canvas, cards and their soft fills.
  *
@@ -167,45 +170,44 @@
   --dur: 160ms;
 }
 
-/* Night: deep blue-green glass, the same two washes in low light. Applied by `[data-theme="dark"]` on <html>. */
+/* Night: Apple's dark system colours, flat. A pure black canvas, #1c1c1e cards, white-grey labels, the
+   system blue for links and the system green for Kori's own colour. No wash and no gradient. The glass,
+   radii and layout are Day's. Applied by `[data-theme="dark"]` on <html>. */
 [data-theme="dark"] {
   color-scheme: dark;
-  --c-bg: #0a1317;
-  --wash:
-    radial-gradient(120% 50% at 0% 0%, rgba(34, 98, 140, 0.4) 0%, rgba(34, 98, 140, 0) 66%),
-    radial-gradient(100% 46% at 100% 100%, rgba(22, 120, 88, 0.34) 0%, rgba(22, 120, 88, 0) 72%),
-    linear-gradient(180deg, #0c161b 0%, #09120f 100%);
-  --c-surface: rgba(255, 255, 255, 0.07);
-  --c-surface-solid: #131f24;
-  --c-fill: rgba(255, 255, 255, 0.06);
-  --c-fill-2: rgba(255, 255, 255, 0.04);
-  --c-glass: rgba(19, 31, 36, 0.78);
+  --c-bg: #000000;
+  --wash: #000000;
+  --c-surface: rgba(118, 118, 128, 0.24);
+  --c-surface-solid: #1c1c1e;
+  --c-fill: rgba(118, 118, 128, 0.24);
+  --c-fill-2: rgba(118, 118, 128, 0.14);
+  --c-glass: rgba(28, 28, 30, 0.78);
   --c-overlay: rgba(0, 0, 0, 0.6);
-  --c-ink: #e6f1f4;
-  --c-ink-2: #bccdd2;
-  --c-ink-3: #a3b6bc;
-  --c-line: rgba(255, 255, 255, 0.13);
-  --c-line-strong: #8ea3a9;
-  --c-accent: #e6f1f4;
+  --c-ink: #f5f5f7;
+  --c-ink-2: #c7c7cc;
+  --c-ink-3: #aeaeb2;
+  --c-line: rgba(84, 84, 88, 0.65);
+  --c-line-strong: #8e8e93;
+  --c-accent: #f5f5f7;
   --c-accent-hover: #ffffff;
-  --c-accent-soft: rgba(143, 211, 255, 0.14);
-  --c-on-accent: #0a1317;
-  --c-accent-text: #8fd3ff;
-  --c-focus: #8fd3ff;
-  --c-brand: #6dd58c;
-  --c-brand-ink: #c4eed0;
-  --c-brand-soft: rgba(61, 220, 132, 0.12);
-  --c-good: #6dd58c;
-  --c-good-soft: rgba(61, 220, 132, 0.12);
-  --c-warn: #ffc95c;
-  --c-warn-soft: rgba(255, 201, 92, 0.12);
-  --c-bad: #f2b8b5;
-  --c-bad-soft: rgba(242, 184, 181, 0.12);
-  --c-code: #0d1a1f;
-  --c-on-code: #e6f1f4;
-  --c-device: #2a3b42;
-  --m-land: #12302d;
-  --m-land-2: #0d1c21;
+  --c-accent-soft: rgba(94, 169, 255, 0.16);
+  --c-on-accent: #000000;
+  --c-accent-text: #5ea9ff;
+  --c-focus: #5ea9ff;
+  --c-brand: #30d158;
+  --c-brand-ink: #b4f0c4;
+  --c-brand-soft: rgba(48, 209, 88, 0.16);
+  --c-good: #30d158;
+  --c-good-soft: rgba(48, 209, 88, 0.16);
+  --c-warn: #ffd60a;
+  --c-warn-soft: rgba(255, 214, 10, 0.16);
+  --c-bad: #ff6961;
+  --c-bad-soft: rgba(255, 105, 97, 0.16);
+  --c-code: #111113;
+  --c-on-code: #f5f5f7;
+  --c-device: #2c2c2e;
+  --m-land: #17261d;
+  --m-land-2: #0f1a14;
   --m-pan: #1a4660;
   --m-water: #5e9fc8;
   --m-river: #2d6283;
@@ -213,19 +215,20 @@
   --m-track: #dcecf0;
   --m-track-gps: #8fc3d4;
   --m-track-predicted: #8aa3ab;
-  --m-cell: #6dd58c;
-  --m-cell-sensitive: #f2b8b5;
+  --m-cell: #30d158;
+  --m-cell-sensitive: #ff6961;
   --m-route: #7cc8ff;
   --m-me: #7cc8ff;
-  --m-halo: #0a1317;
+  --m-halo: #000000;
   --m-wetland: #163a3a;
   --m-road: #7f9aa2;
   --m-label: #e6f1f4;
   --m-label-water: #8fc3e4;
-  /* The imagery at night is dimmed to 80% (IMAGERY_NIGHT_BRIGHTNESS in shared/map-style.ts). */
-  --m-sat-dark: #0b1014;
-  --m-sat-mid: #685254;
-  --m-sat-light: #a49e8e;
+  /* The imagery at night is dimmed to 60% (IMAGERY_NIGHT_BRIGHTNESS in shared/map-style.ts): the
+     Day measurements scaled by 0.6. */
+  --m-sat-dark: #080c0f;
+  --m-sat-mid: #4e3e3f;
+  --m-sat-light: #7b776a;
   --sh-1: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 8px 24px rgba(0, 0, 0, 0.28);
   --sh-2: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 14px 36px rgba(0, 0, 0, 0.42);
   --sh-pin: 0 1px 5px rgba(0, 0, 0, 0.7);
@@ -238,7 +241,7 @@
   }
 
   [data-theme="dark"] {
-    --c-glass: rgba(19, 31, 36, 0.96);
+    --c-glass: rgba(28, 28, 30, 0.96);
   }
 }
 
@@ -253,9 +256,9 @@
   }
 
   [data-theme="dark"] {
-    --c-surface: #131f24;
-    --c-glass: #131f24;
-    --c-fill-2: #0f1a1f;
+    --c-surface: #1c1c1e;
+    --c-glass: #1c1c1e;
+    --c-fill-2: #141416;
     --glass-blur: none;
     --glass-blur-strong: none;
   }

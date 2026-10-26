@@ -174,8 +174,12 @@ export const IMAGERY_LAYER: MapLayerDef = {
   satellite: "on",
 };
 
-/** At night the imagery is dimmed to this share of its brightness, so it does not glare. */
-export const IMAGERY_NIGHT_BRIGHTNESS = 0.8;
+/**
+ * At night the imagery is dimmed to this share of its brightness, so it does not glare and the
+ * black halos of Night's dots and lines stand out against it (the --m-sat-* Night tokens are the
+ * Day measurements scaled by the same share).
+ */
+export const IMAGERY_NIGHT_BRIGHTNESS = 0.6;
 
 const text = (size: [number, number]) => ["interpolate", ["linear"], ["zoom"], 10, size[0], 15, size[1]];
 const label = (font: string, size: [number, number], extra: Record<string, unknown> = {}) => ({
