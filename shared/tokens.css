@@ -29,6 +29,8 @@
  *   status text on its soft fill (approved, waiting, rejected, sample note)  5.1 / 4.6
  *   focus ring 4.6 / 6.5 and input edges 3.6 / 4.0  (3:1 needed for both)
  *   map lines and sighting areas on the ground      3.3 / 3.8  (3:1 needed)
+ *   a real pack (26 October 2026): base-map roads 3.4 / 3.4; names on their halo 6.3 / 9.9;
+ *   over the satellite imagery, a line or its halo casing against the imagery 3.2 / 3.6
  * The amber and red signals keep 4.5:1 or more as text on the canvas, cards and their soft fills.
  *
  * Components read these names and never hard-code a colour, radius or font size. Anything that
