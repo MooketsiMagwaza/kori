@@ -1143,6 +1143,21 @@ textarea {
   white-space: nowrap;
 }
 
+/* A real pack's credits are never cut short, so on a phone they wrap onto a second line. */
+.map-foot-text.map-credits {
+  overflow: visible;
+  padding-block: 3px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.map-foot:has(.map-credits) {
+  border-radius: var(--r-lg);
+}
+
 .map-foot-i {
   position: relative;
   display: grid;
@@ -1248,6 +1263,15 @@ textarea {
 
 .swatch-line.route {
   border-top: 6px solid var(--m-route);
+}
+
+/* An OpenStreetMap track: ink on its halo casing, as drawn on the map */
+.swatch-line.osm {
+  box-shadow: 0 0 0 2px var(--m-halo), 0 0 0 3px var(--c-line);
+}
+
+.swatch-line.park {
+  border-top: 2px dashed var(--m-boundary);
 }
 
 .swatch-cell {
@@ -1416,6 +1440,10 @@ textarea {
   border-radius: 50%;
   background: none;
   cursor: pointer;
+  /* A long press shows Kori's preview card, not the browser's callout or a text selection. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .pin::before {

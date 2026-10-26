@@ -1,45 +1,160 @@
 "use client";
 
 /**
- * The park map. Draws only what is stored on this phone: the downloaded pack (GeoJSON in IndexedDB)
- * and the sightings list. No tiles are fetched, so it works with no signal. Your position comes from
- * the phone's GPS, which needs no mobile signal either.
+ * The park map. Draws only what is stored on this phone: the active pack and the sightings list.
+ * Nothing is fetched to draw it, so it works with no signal. Your position comes from the phone's
+ * GPS, which needs no mobile signal either.
+ *
+ * Two kinds of pack:
+ *   - the sample reserve (fictional, one GeoJSON file in IndexedDB), drawn as before;
+ *   - a real park pack (private, from the computer serving the app): an OpenStreetMap vector base
+ *     map and Sentinel-2 imagery as PMTiles files in the phone's storage, read by byte range through
+ *     the pmtiles:// protocol, and the OSM track graph that routing uses. Tracks are labelled
+ *     "OSM, not verified"; the satellite layer is in the layers sheet; credits are in the bottom row.
  *
  * Guidance (?to=<sighting id>) routes along tracks only, from your position if you are inside the
  * reserve, otherwise from the gate. Predicted tracks are hidden and left out of routing until you
- * switch them on, and they are always drawn dashed.
+ * switch them on, and they are always drawn dashed (the real pack has none).
+ *
+ * Tapping a sighting: one tap on a lone dot opens it; a long press shows a preview card with an
+ * "Open" button; a numbered cluster zooms in (shared/map-markers.ts, pressOutcome).
  *
  * Chrome over the map is kept small so the map fills the screen: one slim chip at the top while there
  * is no pack, and one slim row at the bottom left (beside the Day and Night button) with a "Demo data"
- * link, the pack size and the (i) that opens the map's information, including the warning that the
- * sample reserve is fictional and must not be navigated by.
+ * link, the pack size or the map credits, and the (i) that opens the map's information, including the
+ * warning that the sample reserve is fictional and must not be navigated by.
  */
 
 import "@/lib/maplibre-setup";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { LngLatBounds, Map as MapLibreMap, Marker, ScaleControl, type GeoJSONSource, type LayerSpecification } from "maplibre-gl";
+import { useRouter } from "next/navigation";
+import { LngLatBounds, Map as MapLibreMap, Marker, ScaleControl, type GeoJSONSource, type LayerSpecification, type StyleSpecification } from "maplibre-gl";
 import type { LonLat } from "@/shared/geo";
 import { distanceMeters, distanceToPolylineMeters, formatDistance, metersToDegrees } from "@/shared/geo";
-import { CELL_LAYER_IDS, MAP_LAYERS, MAP_SOURCES, colourBindings, resolveLayer } from "@/shared/map-style";
-import { circleBox, groupPins, labelBox, overlaps, placeLabels, type Pin } from "@/shared/map-markers";
-import { reserveGeoJSON, isInsideReserve, SAMPLE_RESERVE_ID, type Reserve } from "@/shared/reserve";
+import {
+  CELL_LAYER_IDS,
+  IMAGERY_LAYER,
+  IMAGERY_NIGHT_BRIGHTNESS,
+  MAP_LAYERS,
+  MAP_SOURCES,
+  REAL_BASE_LAYERS,
+  REAL_LABEL_LAYERS,
+  REAL_LAYERS,
+  REAL_SOURCES,
+  colourBindings,
+  mapFontFaces,
+  resolveLayer,
+  satelliteVisibility,
+} from "@/shared/map-style";
+import { circleBox, groupPins, labelBox, LONG_PRESS_MS, overlaps, placeLabels, pressOutcome, TAP_MOVE_PX, type Pin } from "@/shared/map-markers";
+import { reserveGeoJSON, isInsideReserve, TRACK_STATUS_LABEL, type Reserve } from "@/shared/reserve";
 import { routeAlongTracks, type RouteResult } from "@/shared/routing";
 import { canGuide, cellRing, isPublic, sensitivityOf } from "@/shared/rules";
 import type { Sighting } from "@/shared/sample-sightings";
 import { speciesById } from "@/shared/species";
 import { Icon } from "@/shared/icons";
 import { DemoDataChip } from "@/components/bits";
-import { getStore } from "@/lib/store";
-import { formatBytes, useGeolocation, useNow, useStoreData } from "@/lib/hooks";
+import { getStore, type PackProgress, type RealPackRecord } from "@/lib/store";
+import { registerPackFile } from "@/lib/pmtiles-setup";
+import { formatBytes, relativeTime, useGeolocation, useNow, useStoreData } from "@/lib/hooks";
+import { SAMPLE_RESERVE_ID } from "@/shared/reserve";
 
 const EMPTY = { type: "FeatureCollection" as const, features: [] };
+
+const OSM_CREDIT = "© OpenStreetMap contributors";
+const SENTINEL_CREDIT = "Contains modified Copernicus Sentinel data 2025";
 
 // Colours come from the design tokens (--m-*), read when the layers are added and again when the
 // theme changes. There is no colour in this file.
 function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+const isNight = () => document.documentElement.getAttribute("data-theme") === "dark";
+
+/** Add a real pack's sources and layers, reading its PMTiles files from this phone's storage. */
+async function addRealPack(map: MapLibreMap, pack: RealPackRecord): Promise<boolean> {
+  const store = getStore();
+  const [base, imagery] = await Promise.all([store.packFile(pack.id, "base.pmtiles"), store.packFile(pack.id, "imagery.pmtiles")]);
+  if (!base) return false;
+  removeRealPack(map);
+  const key = `kori-${pack.id}-${pack.version}-${Date.parse(pack.downloadedAt)}`;
+  map.addSource("base", { type: "vector", url: registerPackFile(`${key}-base`, base), attribution: OSM_CREDIT });
+  for (const layer of REAL_BASE_LAYERS) map.addLayer(resolveLayer(layer, cssVar) as unknown as LayerSpecification, "boundary-fill");
+  if (imagery) {
+    map.addSource("imagery", { type: "raster", url: registerPackFile(`${key}-imagery`, imagery), tileSize: 256, attribution: SENTINEL_CREDIT });
+    map.addLayer(resolveLayer(IMAGERY_LAYER, cssVar) as unknown as LayerSpecification, "base-park-edge-casing");
+  }
+  for (const layer of REAL_LABEL_LAYERS) map.addLayer(resolveLayer(layer, cssVar) as unknown as LayerSpecification);
+  return true;
+}
+
+function removeRealPack(map: MapLibreMap) {
+  for (const layer of REAL_LAYERS) if (map.getLayer(layer.id)) map.removeLayer(layer.id);
+  for (const source of REAL_SOURCES) if (map.getSource(source)) map.removeSource(source);
+}
+
+/**
+ * Follow presses on a marker and report what each should do (pressOutcome). A long press shows the
+ * preview as soon as the hold is long enough, and the click that follows the release is swallowed. A
+ * keyboard Enter or Space arrives as a click with no pointer, which counts as a tap.
+ */
+function watchPress(el: HTMLElement, target: "pin" | "cluster", act: (outcome: ReturnType<typeof pressOutcome>) => void) {
+  let start: { x: number; y: number; t: number } | null = null;
+  let moved = 0;
+  let previewed = false;
+  let timer = 0;
+  const stopTimer = () => window.clearTimeout(timer);
+  el.addEventListener("pointerdown", (event) => {
+    start = { x: event.clientX, y: event.clientY, t: performance.now() };
+    moved = 0;
+    previewed = false;
+    stopTimer();
+    if (target === "pin") {
+      timer = window.setTimeout(() => {
+        if (moved > TAP_MOVE_PX) return;
+        previewed = true;
+        act(pressOutcome(target, { heldMs: LONG_PRESS_MS, movedPx: moved }));
+      }, LONG_PRESS_MS);
+    }
+  });
+  el.addEventListener("pointermove", (event) => {
+    if (!start) return;
+    moved = Math.max(moved, Math.hypot(event.clientX - start.x, event.clientY - start.y));
+    if (moved > TAP_MOVE_PX) stopTimer();
+  });
+  el.addEventListener("pointercancel", () => {
+    stopTimer();
+    start = null;
+    act(pressOutcome(target, { heldMs: 0, movedPx: 0, cancelled: true }));
+  });
+  el.addEventListener("click", (event) => {
+    stopTimer();
+    event.preventDefault();
+    event.stopPropagation();
+    if (previewed) {
+      previewed = false;
+      start = null;
+      return;
+    }
+    const press = start ? { heldMs: performance.now() - start.t, movedPx: moved } : { heldMs: 0, movedPx: 0 };
+    start = null;
+    act(pressOutcome(target, press));
+  });
+  el.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    stopTimer();
+    if (target !== "pin") return;
+    previewed = true;
+    act(pressOutcome(target, { heldMs: 0, movedPx: 0, contextMenu: true }));
+  });
+}
+
+function applySatellite(map: MapLibreMap, on: boolean) {
+  for (const { layer, visible } of satelliteVisibility(on)) if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", visible ? "visible" : "none");
+  if (map.getLayer("imagery")) map.setPaintProperty("imagery", "raster-brightness-max", isNight() ? IMAGERY_NIGHT_BRIGHTNESS : 1);
 }
 
 function circle(centre: LonLat, radiusMeters: number): LonLat[] {
@@ -109,26 +224,39 @@ export default function ParkMap({ to }: Props) {
   const meMarker = useRef<Marker | null>(null);
   const placeMarkers = useRef<Marker[]>([]);
   const [ready, setReady] = useState(false);
+  // The dot whose preview card is open (a long press), shown selected and named.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [gpsOn, setGpsOn] = useState(false);
   const [showPredicted, setShowPredicted] = useState(false);
   const [showCells, setShowCells] = useState(true);
+  const [satellite, setSatellite] = useState(false);
+  const [realReady, setRealReady] = useState(false);
   const [panel, setPanel] = useState<"none" | "legend" | "info">("none");
   const [downloading, setDownloading] = useState(false);
+  const [progress, setProgress] = useState<PackProgress | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const now = useNow(60_000);
   const geo = useGeolocation(gpsOn);
+  const router = useRouter();
+  const routerRef = useRef(router);
+  useEffect(() => {
+    routerRef.current = router;
+  });
 
   const { data } = useStoreData(
     async (store) => {
       const at = new Date();
-      const [pack, sightings] = await Promise.all([store.getPack(SAMPLE_RESERVE_ID), store.listSightings(at)]);
-      return { pack: pack ?? null, sightings };
+      const [pack, sightings, offered] = await Promise.all([store.activePack(), store.listSightings(at), store.localPacks()]);
+      return { pack, sightings, offered };
     },
     [],
   );
-  const reserve: Reserve | null = data?.pack?.data ?? null;
+  const pack = data?.pack ?? null;
+  const real = pack?.kind === "pmtiles" ? pack : null;
+  const reserve: Reserve | null = pack?.data ?? null;
+  // A real pack the computer serving the app offers, when none is on this phone (development only).
+  const offered = !real ? data?.offered?.[0] ?? null : null;
 
   const visibleSightings: Sighting[] = useMemo(
     () => (now && data ? data.sightings.filter((s) => (s.source === "sample" ? isPublic(s, now) : true)) : []),
@@ -148,13 +276,16 @@ export default function ParkMap({ to }: Props) {
   const gateLat = gate?.at[1] ?? null;
   const targetLon = target?.cell.centre[0] ?? null;
   const targetLat = target?.cell.centre[1] ?? null;
-  // Routing over about 45 junctions takes well under a millisecond, so it simply runs each render.
-  const start: LonLat | null =
-    inside && roughLon !== null && roughLat !== null ? [roughLon, roughLat] : gateLon !== null && gateLat !== null ? [gateLon, gateLat] : null;
-  const route: RouteResult | null =
-    reserve && targetLon !== null && targetLat !== null && allowed && start
-      ? routeAlongTracks(reserve, start, [targetLon, targetLat], { includePredicted: showPredicted, minConfidence: "high" })
-      : null;
+  // A real pack has hundreds of junctions, so the route is worked out only when an input changes.
+  const startLon = inside && roughLon !== null ? roughLon : gateLon;
+  const startLat = inside && roughLat !== null ? roughLat : gateLat;
+  const route: RouteResult | null = useMemo(
+    () =>
+      reserve && targetLon !== null && targetLat !== null && allowed && startLon !== null && startLat !== null
+        ? routeAlongTracks(reserve, [startLon, startLat], [targetLon, targetLat], { includePredicted: showPredicted, minConfidence: "high" })
+        : null,
+    [reserve, targetLon, targetLat, allowed, startLon, startLat, showPredicted],
+  );
   const routeKey = route ? `${route.edgeIds.join(",")}:${Math.round(route.lengthMeters)}` : "";
   const routeRef = useRef<RouteResult | null>(null);
   useEffect(() => {
@@ -182,9 +313,11 @@ export default function ParkMap({ to }: Props) {
   // Create the map once.
   useEffect(() => {
     if (!container.current || mapRef.current) return;
+    // Label fonts are the app's own files (public/map-fonts), so names draw with no network.
+    const style = { version: 8, sources: {}, layers: [], "font-faces": mapFontFaces(window.location.origin) } as unknown as StyleSpecification;
     const map = new MapLibreMap({
       container: container.current,
-      style: { version: 8, sources: {}, layers: [] },
+      style,
       center: [22.4, -21.3],
       zoom: 9.6,
       attributionControl: false,
@@ -210,7 +343,10 @@ export default function ParkMap({ to }: Props) {
     mapRef.current = map;
     // Debugging aid: /map?debug exposes the map instance in the console.
     if (new URLSearchParams(window.location.search).has("debug")) (window as unknown as { koriMap?: MapLibreMap }).koriMap = map;
-    const observer = new MutationObserver(() => paint(map));
+    const observer = new MutationObserver(() => {
+      paint(map);
+      if (map.getLayer("imagery")) map.setPaintProperty("imagery", "raster-brightness-max", isNight() ? IMAGERY_NIGHT_BRIGHTNESS : 1);
+    });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     return () => {
       observer.disconnect();
@@ -229,33 +365,69 @@ export default function ParkMap({ to }: Props) {
       return;
     }
     const layers = reserveGeoJSON(reserve);
-    set("boundary", layers.boundary);
+    const isReal = reserve.kind === "real";
+    // A real pack's boundary is the park clipped to the pack's window: it is used to tell whether you
+    // are inside, but the park's edge is drawn from the base map, so the window's straight sides are
+    // not mistaken for the park's.
+    set("boundary", isReal ? EMPTY : layers.boundary);
     set("pans", layers.pans);
     set("river", layers.river);
     set("tracks", layers.tracks);
     if (!to) map.fitBounds(reserve.bounds, { padding: framePadding(map, topRef.current), duration: 0 });
 
     placeMarkers.current.forEach((m) => m.remove());
-    placeMarkers.current = reserve.nodes
-      .filter((n) => n.kind !== "junction")
-      .map((node) => {
-        const el = document.createElement("div");
-        el.className = `place-marker place-${node.kind}`;
-        const name = document.createElement("span");
-        name.className = "place-name";
-        name.textContent = node.name ?? "";
-        el.append(name);
-        return new Marker({ element: el, anchor: "center" }).setLngLat(node.at).addTo(map);
-      });
+    // In a real pack the gates and camps are named by the base map's labels instead.
+    placeMarkers.current = isReal
+      ? []
+      : reserve.nodes
+          .filter((n) => n.kind !== "junction")
+          .map((node) => {
+            const el = document.createElement("div");
+            el.className = `place-marker place-${node.kind}`;
+            const name = document.createElement("span");
+            name.className = "place-name";
+            name.textContent = node.name ?? "";
+            el.append(name);
+            return new Marker({ element: el, anchor: "center" }).setLngLat(node.at).addTo(map);
+          });
   }, [reserve, ready, to]);
 
-  // Predicted tracks and cells visibility.
+  // A real pack's base map and imagery, from this phone's storage.
+  const realKey = real ? `${real.id}:${real.downloadedAt}` : "";
+  const realRef = useRef(real);
+  useEffect(() => {
+    realRef.current = real;
+  });
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const current = realRef.current;
+    let alive = true;
+    if (!current) {
+      removeRealPack(map);
+      const t = window.setTimeout(() => setRealReady(false), 0);
+      return () => window.clearTimeout(t);
+    }
+    addRealPack(map, current)
+      .then((ok) => {
+        if (!alive) return;
+        if (!ok) setDownloadError("The pack's map files are missing on this phone. Download the pack again from Offline and packs.");
+        setRealReady(ok);
+      })
+      .catch(() => alive && setDownloadError("The pack's map files could not be read from this phone's storage."));
+    return () => {
+      alive = false;
+    };
+  }, [realKey, ready]);
+
+  // Predicted tracks, cells and the satellite layer.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
     map.setLayoutProperty("tracks-predicted", "visibility", showPredicted ? "visible" : "none");
     for (const id of CELL_LAYER_IDS) map.setLayoutProperty(id, "visibility", showCells ? "visible" : "none");
-  }, [showPredicted, showCells, ready]);
+    applySatellite(map, satellite && realReady);
+  }, [showPredicted, showCells, satellite, realReady, ready]);
 
   // Sighting areas: the 1 km (or 10 km) squares that are actually published.
   useEffect(() => {
@@ -320,9 +492,11 @@ export default function ParkMap({ to }: Props) {
       const dot = document.createElement("button");
       dot.type = "button";
       dot.className = `pin${pin.sensitive ? " pin-sensitive" : ""}`;
-      dot.setAttribute("aria-label", `${pin.name}${pin.sensitive ? ", sensitive species, presence only" : ""}. Show its name.`);
-      dot.setAttribute("aria-pressed", String(selected));
-      dot.addEventListener("click", () => setSelectedId((current) => (current === pin.id ? null : pin.id)));
+      dot.setAttribute("aria-label", `${pin.name}${pin.sensitive ? ", sensitive species, presence only" : ""}. Opens the sighting; press and hold, or use the menu key, for a preview.`);
+      watchPress(dot, "pin", (outcome) => {
+        if (outcome === "open") routerRef.current.push(`/sighting?id=${encodeURIComponent(pin.id)}`);
+        else if (outcome === "preview") setSelectedId(pin.id);
+      });
       wrap.append(dot);
       const side = labels.get(pin.id);
       if (side) {
@@ -346,7 +520,9 @@ export default function ParkMap({ to }: Props) {
       el.className = "pin-cluster";
       el.textContent = String(cluster.members.length);
       el.setAttribute("aria-label", `${cluster.members.length} sightings close together. Zoom in to see them.`);
-      el.addEventListener("click", () => map.fitBounds(bounds, { padding: 96, maxZoom: 15, duration: 400 }));
+      watchPress(el, "cluster", (outcome) => {
+        if (outcome === "zoom") map.fitBounds(bounds, { padding: 96, maxZoom: 15, duration: 400 });
+      });
       const centre = map.unproject([cluster.x, cluster.y]);
       pinMarkers.current.push(new Marker({ element: el, anchor: "center" }).setLngLat([centre.lng, centre.lat]).addTo(map));
     }
@@ -423,7 +599,24 @@ export default function ParkMap({ to }: Props) {
     }
   }
 
+  async function downloadReal(id: string) {
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      await getStore().downloadRealPack(id, setProgress);
+    } catch (reason) {
+      setDownloadError(reason instanceof Error ? reason.message : "The pack could not be downloaded.");
+    } finally {
+      setDownloading(false);
+      setProgress(null);
+    }
+  }
+
   const distanceFromReserve = reserve && fix && !inside ? distanceMeters(fix, reserve.centre) : null;
+  const shortName = (name: string) => name.split(",")[0].trim();
+  const percent = progress ? Math.floor((progress.overall / Math.max(1, progress.overallTotal)) * 100) : null;
+  const preview = selectedId ? visibleSightings.find((s) => s.id === selectedId) ?? null : null;
+  const routeCaution = route && reserve ? reserve.edges.some((e) => e.caution && route.edgeIds.includes(e.id)) : false;
 
   return (
     <div className="map-page">
@@ -433,11 +626,19 @@ export default function ParkMap({ to }: Props) {
       </div>
 
       <div className="map-top" ref={topRef}>
-        {data && !reserve ? (
+        {data && !reserve && !offered ? (
           <div className="map-chip">
             <span className="map-chip-text">No park pack</span>
             <button type="button" className="map-chip-btn" onClick={download} disabled={downloading}>
               {downloading ? "Downloading…" : "Download the sample pack"}
+            </button>
+          </div>
+        ) : null}
+        {data && offered ? (
+          <div className="map-chip">
+            <span className="map-chip-text">{reserve ? "Real map on this computer" : "No park pack"}</span>
+            <button type="button" className="map-chip-btn" onClick={() => downloadReal(offered.id)} disabled={downloading}>
+              {downloading ? `Downloading… ${percent ?? 0}%` : `Download the ${shortName(offered.name)} pack`}
             </button>
           </div>
         ) : null}
@@ -463,7 +664,15 @@ export default function ParkMap({ to }: Props) {
 
       <div className="map-foot">
         <DemoDataChip />
-        {data?.pack ? <span className="map-foot-text">Pack {formatBytes(data.pack.bytes)}</span> : null}
+        {real ? (
+          // The map's credits, always on screen while a real pack is drawn.
+          <span className="map-foot-text map-credits">
+            {OSM_CREDIT}
+            {satellite && realReady ? <span className="map-credit-imagery"> · {SENTINEL_CREDIT}</span> : null}
+          </span>
+        ) : data?.pack ? (
+          <span className="map-foot-text">Pack {formatBytes(data.pack.bytes)}</span>
+        ) : null}
         <button type="button" className="map-foot-i" onClick={() => setPanel(panel === "info" ? "none" : "info")} aria-label="About this map" aria-expanded={panel === "info"}>
           <Icon name="info" size={20} />
         </button>
@@ -491,16 +700,39 @@ export default function ParkMap({ to }: Props) {
               Close
             </button>
           </div>
+          {real ? (
+            <label className="check">
+              <input type="checkbox" checked={satellite} disabled={!realReady} onChange={(e) => setSatellite(e.target.checked)} />
+              <span>
+                Satellite imagery
+                <br />
+                <span className="hint">Sentinel-2, 2 August 2025, 10 m pixels. Context only: most tracks are narrower than a pixel, so the tracks you see are drawn from OpenStreetMap on top.</span>
+              </span>
+            </label>
+          ) : null}
           <ul className="legend">
-            <li>
-              <span className="swatch-line" /> Verified track (reviewed)
-            </li>
-            <li>
-              <span className="swatch-line gps" /> GPS-confirmed track (3 or more trips; synthetic in the sample)
-            </li>
-            <li>
-              <span className="swatch-line predicted" /> Predicted, not verified (sample)
-            </li>
+            {real ? (
+              <>
+                <li>
+                  <span className="swatch-line osm" /> Track from OpenStreetMap: {TRACK_STATUS_LABEL.osm}. It may be missing, misplaced or closed.
+                </li>
+                <li>
+                  <span className="swatch-line park" /> Park boundary
+                </li>
+              </>
+            ) : (
+              <>
+                <li>
+                  <span className="swatch-line" /> Verified track (reviewed)
+                </li>
+                <li>
+                  <span className="swatch-line gps" /> GPS-confirmed track (3 or more trips; synthetic in the sample)
+                </li>
+                <li>
+                  <span className="swatch-line predicted" /> Predicted, not verified (sample)
+                </li>
+              </>
+            )}
             <li>
               <span className="swatch-cell" /> Sighting area (1 km)
             </li>
@@ -516,9 +748,11 @@ export default function ParkMap({ to }: Props) {
             <li>
               <span className="swatch-dot sensitive" /> A sensitive species, marked as a ring
             </li>
-            <li>
-              <span className="swatch-place" /> The gate and camps (camp names show when you zoom in)
-            </li>
+            {real ? null : (
+              <li>
+                <span className="swatch-place" /> The gate and camps (camp names show when you zoom in)
+              </li>
+            )}
             <li>
               <span className="swatch-me" /> You
             </li>
@@ -527,14 +761,16 @@ export default function ParkMap({ to }: Props) {
             <input type="checkbox" checked={showCells} onChange={(e) => setShowCells(e.target.checked)} />
             <span>Show sighting areas</span>
           </label>
-          <label className="check">
-            <input type="checkbox" checked={showPredicted} onChange={(e) => setShowPredicted(e.target.checked)} />
-            <span>
-              Show predicted tracks
-              <br />
-              <span className="hint">Predicted from imagery, not verified by anyone. Only high-confidence ones are used for routing, and only while this is on. No substitute for a guide.</span>
-            </span>
-          </label>
+          {real ? null : (
+            <label className="check">
+              <input type="checkbox" checked={showPredicted} onChange={(e) => setShowPredicted(e.target.checked)} />
+              <span>
+                Show predicted tracks
+                <br />
+                <span className="hint">Predicted from imagery, not verified by anyone. Only high-confidence ones are used for routing, and only while this is on. No substitute for a guide.</span>
+              </span>
+            </label>
+          )}
         </div>
       ) : null}
 
@@ -546,16 +782,53 @@ export default function ParkMap({ to }: Props) {
               Close
             </button>
           </div>
-          <p>
-            <strong>Sample reserve, fictional.</strong> Its tracks and places are generated and do not match the ground. Do not navigate by it.
-          </p>
+          {real ? (
+            <>
+              <p>
+                <strong>{real.name}: a real map, private pack.</strong> Tracks are from OpenStreetMap and not verified by Kori: they may be missing, misplaced or
+                closed. Follow park rules and signs, and drive only on tracks. The sightings are sample data placed on real ground.
+              </p>
+              <p className="muted">
+                Pack {formatBytes(real.bytes)}, on this phone, drawn with no network. Version {real.version}. Kept on the owner&apos;s devices only: a real park is published only after the
+                Department of Wildlife and National Parks agrees.
+              </p>
+              <p className="faint">
+                Map data {OSM_CREDIT}, under the Open Database License (ODbL); the pack&apos;s base map and tracks are ODbL too. {SENTINEL_CREDIT}. Drawn with MapLibre GL JS.{" "}
+                <Link href="/about#credits">Credits and licences</Link>.
+              </p>
+            </>
+          ) : (
+            <>
+              <p>
+                <strong>Sample reserve, fictional.</strong> Its tracks and places are generated and do not match the ground. Do not navigate by it.
+              </p>
+              <p className="muted">
+                Maps draw only from packs you have downloaded, so they work with no signal.{" "}
+                {data?.pack ? `Pack ${formatBytes(data.pack.bytes)}, on this phone.` : "No pack is on this phone yet."}
+              </p>
+              <p className="faint">
+                <Link href="/about#demo-data">About the demo data</Link>. Drawn with MapLibre GL JS.
+              </p>
+            </>
+          )}
+        </div>
+      ) : null}
+
+      {preview && panel === "none" && !to ? (
+        <div className="map-sheet map-preview" role="dialog" aria-label={`${speciesById(preview.speciesId)?.common ?? "Sighting"}, preview`}>
+          <div className="section-head">
+            <h2>{speciesById(preview.speciesId)?.common ?? "Sighting"}</h2>
+            <button type="button" className="btn btn-quiet" onClick={() => setSelectedId(null)}>
+              Close
+            </button>
+          </div>
           <p className="muted">
-            Maps draw only from packs you have downloaded, so they work with no signal.{" "}
-            {data?.pack ? `Pack ${formatBytes(data.pack.bytes)}, on this phone.` : "No pack is on this phone yet."}
+            {preview.count} seen {now ? relativeTime(preview.seenAt, now) : ""} · {sensitivityOf(preview) === "sensitive" ? "10 km area, presence only" : "1 km area"}
+            {preview.source === "sample" ? " · sample" : ""}
           </p>
-          <p className="faint">
-            <Link href="/about#demo-data">About the demo data</Link>. Drawn with MapLibre GL JS.
-          </p>
+          <Link href={`/sighting?id=${encodeURIComponent(preview.id)}`} className="btn" style={{ alignSelf: "flex-start" }}>
+            Open
+          </Link>
         </div>
       ) : null}
 
@@ -583,8 +856,22 @@ export default function ParkMap({ to }: Props) {
               {!inside ? (
                 <p className="faint">
                   {fix && distanceFromReserve !== null
-                    ? `You are ${formatDistance(distanceFromReserve)} from the sample reserve, so the route starts at the gate.`
+                    ? `You are ${formatDistance(distanceFromReserve)} from ${real ? shortName(reserve.name) : "the sample reserve"}, so the route starts at the gate.`
                     : "Your position is off or outside the reserve, so the route starts at the gate."}
+                </p>
+              ) : null}
+              {real ? (
+                <p className="notice notice-plain">
+                  <Icon name="info" size={20} />
+                  <span>
+                    Along OpenStreetMap tracks (<strong>{TRACK_STATUS_LABEL.osm}</strong>): a track may be missing, overgrown or closed. Follow park signs and your guide.
+                  </span>
+                </p>
+              ) : null}
+              {routeCaution ? (
+                <p className="notice notice-warn">
+                  <Icon name="alert" size={20} />
+                  <span>Part of this route is on a track OpenStreetMap marks as one to avoid. Kori uses it only because no reasonable alternative reaches the area.</span>
                 </p>
               ) : null}
               {offRoute !== null && offRoute > offRouteLimit ? (
