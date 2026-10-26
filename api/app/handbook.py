@@ -48,6 +48,13 @@ PAGES: tuple[HandbookPage, ...] = (
         "Field use in sun and with no signal, the identity, and the review checklist.",
     ),
     HandbookPage(
+        "real-map",
+        "REAL_MAP.md",
+        "A real map",
+        "Design",
+        "The plan for a real OpenStreetMap and satellite map, offline: options, sources, safety, demo.",
+    ),
+    HandbookPage(
         "deploy",
         "DEPLOY.md",
         "Deploying the web apps",
