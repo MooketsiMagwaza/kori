@@ -10,7 +10,10 @@
  *   - a real park pack (private, from the computer serving the app): an OpenStreetMap vector base
  *     map and Sentinel-2 imagery as PMTiles files in the phone's storage, read by byte range through
  *     the pmtiles:// protocol, and the OSM track graph that routing uses. Tracks are labelled
- *     "OSM, not verified"; the satellite layer is in the layers sheet; credits are in the bottom row.
+ *     "OSM, not verified". When the pack has imagery, satellite with the tracks on top is the
+ *     default view; the plain map is one tap away (the photo button, or the layers sheet). The
+ *     map opens on the pack's gates and camps at zoom 11 or closer, so names show. Credits are in
+ *     the bottom row.
  *
  * Guidance (?to=<sighting id>) routes along tracks only, from your position if you are inside the
  * reserve, otherwise from the gate. Predicted tracks are hidden and left out of routing until you
@@ -87,8 +90,21 @@ async function addRealPack(map: MapLibreMap, pack: RealPackRecord): Promise<bool
     map.addSource("imagery", { type: "raster", url: registerPackFile(`${key}-imagery`, imagery), tileSize: 256, attribution: SENTINEL_CREDIT });
     map.addLayer(resolveLayer(IMAGERY_LAYER, cssVar) as unknown as LayerSpecification, "base-park-edge-casing");
   }
+  const places = pack.data.nodes
+    .filter((node) => node.kind !== "junction")
+    .map((node) => ({ type: "Feature" as const, properties: { name: node.name ?? "", kind: node.kind }, geometry: { type: "Point" as const, coordinates: node.at } }));
+  map.addSource("pack-places", { type: "geojson", data: { type: "FeatureCollection", features: places } });
   for (const layer of REAL_LABEL_LAYERS) map.addLayer(resolveLayer(layer, cssVar) as unknown as LayerSpecification);
   return true;
+}
+
+/** Where a real pack opens: the middle of its gates and camps, at zoom 11 or closer, so names show. */
+function openingView(reserve: Reserve): { center: LonLat; minZoom: number } | null {
+  const places = reserve.nodes.filter((node) => node.kind !== "junction");
+  if (!places.length) return null;
+  const lon = places.reduce((sum, node) => sum + node.at[0], 0) / places.length;
+  const lat = places.reduce((sum, node) => sum + node.at[1], 0) / places.length;
+  return { center: [lon, lat], minZoom: 11 };
 }
 
 function removeRealPack(map: MapLibreMap) {
@@ -263,7 +279,9 @@ export default function ParkMap({ to }: Props) {
   const [gpsOn, setGpsOn] = useState(false);
   const [showPredicted, setShowPredicted] = useState(false);
   const [showCells, setShowCells] = useState(true);
-  const [satellite, setSatellite] = useState(false);
+  // Satellite with the tracks on top is the default whenever the pack has imagery (the owner's
+  // "proper map"); the plain map is one tap away. Null until the person chooses.
+  const [satelliteChoice, setSatelliteChoice] = useState<boolean | null>(null);
   const [realReady, setRealReady] = useState(false);
   const [panel, setPanel] = useState<"none" | "legend" | "info">("none");
   const [downloading, setDownloading] = useState(false);
@@ -287,6 +305,8 @@ export default function ParkMap({ to }: Props) {
   );
   const pack = data?.pack ?? null;
   const real = pack?.kind === "pmtiles" ? pack : null;
+  const hasImagery = Boolean(real?.manifest.files.some((file) => file.role === "imagery"));
+  const satellite = (satelliteChoice ?? hasImagery) && realReady;
   const reserve: Reserve | null = pack?.data ?? null;
   // A real pack the computer serving the app offers, when none is on this phone (development only).
   const offered = !real ? data?.offered?.[0] ?? null : null;
@@ -403,8 +423,12 @@ export default function ParkMap({ to }: Props) {
     set("river", layers.river);
     set("tracks", layers.tracks);
     if (!to) {
-      if (isReal) coverBounds(map, reserve.bounds, framePadding(map, topRef.current));
-      else map.fitBounds(reserve.bounds, { padding: framePadding(map, topRef.current), duration: 0 });
+      if (isReal) {
+        coverBounds(map, reserve.bounds, framePadding(map, topRef.current));
+        // Open where the pack's places are, close enough for the base map's names (zoom 11).
+        const view = openingView(reserve);
+        if (view) map.jumpTo({ center: view.center, zoom: Math.max(map.getZoom(), view.minZoom) });
+      } else map.fitBounds(reserve.bounds, { padding: framePadding(map, topRef.current), duration: 0 });
     }
 
     placeMarkers.current.forEach((m) => m.remove());
@@ -458,7 +482,7 @@ export default function ParkMap({ to }: Props) {
     if (!map || !ready) return;
     map.setLayoutProperty("tracks-predicted", "visibility", showPredicted ? "visible" : "none");
     for (const id of CELL_LAYER_IDS) map.setLayoutProperty(id, "visibility", showCells ? "visible" : "none");
-    applySatellite(map, satellite && realReady);
+    applySatellite(map, satellite);
   }, [showPredicted, showCells, satellite, realReady, ready]);
 
   // Sighting areas: the 1 km (or 10 km) squares that are actually published.
@@ -700,7 +724,7 @@ export default function ParkMap({ to }: Props) {
           // The map's credits, always on screen while a real pack is drawn.
           <span className="map-foot-text map-credits">
             {OSM_CREDIT}
-            {satellite && realReady ? <span className="map-credit-imagery"> · {SENTINEL_CREDIT}</span> : null}
+            {satellite ? <span className="map-credit-imagery"> · {SENTINEL_CREDIT}</span> : null}
           </span>
         ) : data?.pack ? (
           <span className="map-foot-text">Pack {formatBytes(data.pack.bytes)}</span>
@@ -714,6 +738,11 @@ export default function ParkMap({ to }: Props) {
         <button type="button" className="icon-btn" onClick={locate} aria-label={gpsOn ? "Centre on my position" : "Show my position"} aria-pressed={gpsOn}>
           <Icon name="locate" size={26} />
         </button>
+        {real && hasImagery ? (
+          <button type="button" className="icon-btn" onClick={() => setSatelliteChoice(!satellite)} disabled={!realReady} aria-label="Satellite imagery" aria-pressed={satellite}>
+            <Icon name="photo" size={26} />
+          </button>
+        ) : null}
         <button type="button" className="icon-btn" onClick={() => setPanel(panel === "legend" ? "none" : "legend")} aria-label="Layers and key" aria-expanded={panel === "legend"}>
           <Icon name="layers" size={26} />
         </button>
@@ -734,7 +763,7 @@ export default function ParkMap({ to }: Props) {
           </div>
           {real ? (
             <label className="check">
-              <input type="checkbox" checked={satellite} disabled={!realReady} onChange={(e) => setSatellite(e.target.checked)} />
+              <input type="checkbox" checked={satellite} disabled={!realReady || !hasImagery} onChange={(e) => setSatelliteChoice(e.target.checked)} />
               <span>
                 Satellite imagery
                 <br />

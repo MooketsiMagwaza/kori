@@ -18,17 +18,21 @@
 
 export const MAP_SOURCES = ["boundary", "pans", "river", "tracks", "cells", "route", "accuracy"] as const;
 
-/** Sources a real park pack adds: the vector base map and the satellite imagery (both PMTiles). */
-export const REAL_SOURCES = ["base", "imagery"] as const;
+/**
+ * Sources a real park pack adds: the vector base map and the satellite imagery (both PMTiles), and
+ * the pack's own gates (GeoJSON from its track graph), named at every zoom.
+ */
+export const REAL_SOURCES = ["base", "imagery", "pack-places"] as const;
 
 export type MapLayerDef = {
   id: string;
-  type: "background" | "fill" | "line" | "symbol" | "raster";
+  type: "background" | "fill" | "line" | "symbol" | "raster" | "circle";
   source?: (typeof MAP_SOURCES)[number] | (typeof REAL_SOURCES)[number];
   /** The layer inside a vector source ("roads", "water", ...). */
   sourceLayer?: string;
   filter?: unknown[];
   minzoom?: number;
+  maxzoom?: number;
   layout?: Record<string, unknown>;
   /** Paint properties that are not colours (widths, dashes, opacity). */
   paint: Record<string, unknown>;
@@ -194,6 +198,19 @@ const halo = { "text-halo-width": 1.6, "text-halo-blur": 0.4 };
 
 /** Names, on top of everything drawn by MapLibre (sighting dots are HTML markers above these). */
 export const REAL_LABEL_LAYERS: MapLayerDef[] = [
+  // The park and the reserves around it, named while zoomed out so you can tell where you are.
+  {
+    id: "label-park",
+    type: "symbol",
+    source: "base",
+    sourceLayer: "pois",
+    filter: ["all", named, ["in", ["get", "kind"], ["literal", ["nature_reserve", "protected_area", "national_park"]]]],
+    minzoom: 8,
+    maxzoom: 12.5,
+    layout: label("Noto Sans Italic", [12, 14], { "text-letter-spacing": 0.04, "text-max-width": 8 }),
+    paint: halo,
+    colours: { "text-color": "--m-label", "text-halo-color": "--m-halo" },
+  },
   {
     id: "label-river",
     type: "symbol",
@@ -248,6 +265,25 @@ export const REAL_LABEL_LAYERS: MapLayerDef[] = [
     paint: halo,
     colours: { "text-color": "--m-label", "text-halo-color": "--m-halo" },
   },
+  // The pack's gates, from its own track graph, named at every zoom so the gate a route starts from
+  // is always on the map. (Camps are named by the base map from zoom 13.)
+  {
+    id: "pack-place-dot",
+    type: "circle",
+    source: "pack-places",
+    filter: ["==", ["get", "kind"], "gate"],
+    paint: { "circle-radius": 4, "circle-stroke-width": 2 },
+    colours: { "circle-color": "--m-track", "circle-stroke-color": "--m-halo" },
+  },
+  {
+    id: "pack-place-label",
+    type: "symbol",
+    source: "pack-places",
+    filter: ["==", ["get", "kind"], "gate"],
+    layout: label("Noto Sans SemiBold", [12, 14], { "text-anchor": "left", "text-offset": [0.7, 0], "text-optional": true }),
+    paint: halo,
+    colours: { "text-color": "--m-label", "text-halo-color": "--m-halo" },
+  },
 ];
 
 /** Every layer a real pack adds, in drawing order groups. */
@@ -278,6 +314,7 @@ export function resolveLayer(layer: MapLayerDef, read: (token: string) => string
   if (layer.sourceLayer) spec["source-layer"] = layer.sourceLayer;
   if (layer.filter) spec.filter = layer.filter;
   if (layer.minzoom !== undefined) spec.minzoom = layer.minzoom;
+  if (layer.maxzoom !== undefined) spec.maxzoom = layer.maxzoom;
   if (layer.layout) spec.layout = layer.layout;
   return spec;
 }
