@@ -34,15 +34,10 @@
   }
 }
 
-/* On a phone: the name and the theme switch on one row, the nav scrolls on its own row below */
+/* On a phone: the name on one row, the nav scrolling on its own row below */
 @media (max-width: 719px) {
   .console-bar {
     padding-left: var(--s-4);
-  }
-
-  .console-bar > .theme-toggle {
-    order: 2;
-    margin-left: auto;
   }
 
   .console-nav {
@@ -111,12 +106,13 @@
   flex: none;
 }
 
+/* The bottom padding keeps the floating Day and Night button (bottom right) clear of the last row */
 .console-main {
   flex: 1;
   width: 100%;
   max-width: 1320px;
   margin: 0 auto;
-  padding: var(--s-5) var(--s-4) var(--s-7);
+  padding: var(--s-5) var(--s-4) calc(var(--s-7) + var(--tap) + var(--s-4));
 }
 
 .queue {

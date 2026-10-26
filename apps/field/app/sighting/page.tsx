@@ -9,7 +9,7 @@ import { formatDistance } from "@/shared/geo";
 import { Icon } from "@/shared/icons";
 import { CellThumb } from "@/components/cell-thumb";
 import { QrShare } from "@/components/qr-share";
-import { SampleNote, SensitiveChip, SourceChip, StatusChip } from "@/components/bits";
+import { DemoDataChip, SensitiveChip, SourceChip, StatusChip } from "@/components/bits";
 import { clockTime, relativeTime, useNow, useStoreData } from "@/lib/hooks";
 import { getStore } from "@/lib/store";
 
@@ -100,9 +100,9 @@ function Detail() {
           <SourceChip source={sighting.source} />
           <StatusChip status={sighting.status} />
           {sensitive ? <SensitiveChip /> : null}
+          <DemoDataChip />
         </div>
       </div>
-      {sighting.source === "sample" ? <SampleNote /> : null}
 
       <div className="thumb-lg">
         <CellThumb cell={sighting.cell} sensitive={sensitive} showTracks={!sensitive} title={`The ${km} km area of this sighting`} />

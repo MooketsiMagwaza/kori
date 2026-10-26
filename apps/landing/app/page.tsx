@@ -59,7 +59,6 @@ export default function Home() {
             <a href="#status">Status</a>
           </nav>
           <div className="header-end">
-            <ThemeToggle />
             <a className="btn btn-primary btn-sm" href={FIELD_APP_URL}>
               Open the app
             </a>
@@ -84,10 +83,6 @@ export default function Home() {
                   How Kori protects animals
                 </a>
               </div>
-              <p className="sample-note">
-                <Icon name="info" size={20} />
-                <span>A working prototype with sample data. The reserve and every sighting shown here are invented; the map, rules and routing are the app&apos;s real code.</span>
-              </p>
             </div>
             <div className="phone" aria-label="The field app's map screen">
               <div className="phone-screen">
@@ -274,6 +269,20 @@ export default function Home() {
               </table>
             </div>
             {FIELD_APP_URL === "#status" ? <p className="faint">The field app link appears here once it is deployed.</p> : null}
+            <div id="demo-data" className="demo-about">
+              <h3>About the demo data</h3>
+              <p>
+                Everything you see in this demo is sample data. The reserve, the sightings, the observers and the reviews are invented, and the drawings on this page are made from the
+                same invented data.
+              </p>
+              <p>
+                <strong>The reserve is fictional.</strong> Its tracks and places are generated and do not match the ground at its coordinates, so it must not be used to navigate.
+              </p>
+              <p>
+                The backend (the API, the database, and the review and publication rules) is built and tested, but it is not deployed and the apps do not call it yet. Nothing you
+                log is sent anywhere.
+              </p>
+            </div>
           </div>
         </section>
       </main>
@@ -284,9 +293,15 @@ export default function Home() {
             <KoriLogo size={28} />
             <p className="faint">Named after the kori bustard, kgori in Setswana, Botswana&apos;s national bird.</p>
           </div>
-          <p className="faint">© 2026 Mooketsi Vincent Magwaza. All rights reserved. Prototype with sample data.</p>
+          <div className="stack-sm footer-end">
+            <a className="demo-chip" href="#demo-data">
+              Demo data
+            </a>
+            <p className="faint">© 2026 Mooketsi Vincent Magwaza. All rights reserved.</p>
+          </div>
         </div>
       </footer>
+      <ThemeToggle />
     </>
   );
 }

@@ -1,4 +1,5 @@
 @import "../shared/tokens.css";
+@import "../shared/chrome.css";
 
 /* Kori landing site, soft glass. One long page: a floating glass header, a split hero with the app's
  * real map in a phone, then sections that alternate between the open wash and a large translucent
@@ -206,23 +207,6 @@ a {
   gap: var(--s-2);
 }
 
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--tap);
-  min-height: var(--tap);
-  border: 0;
-  border-radius: var(--r-pill);
-  background: var(--c-fill);
-  color: var(--c-ink);
-  cursor: pointer;
-}
-
-.theme-toggle:hover {
-  background: var(--c-accent-soft);
-}
-
 /* Buttons: pills. The one primary action is an ink pill. */
 .btn {
   display: inline-flex;
@@ -301,24 +285,6 @@ a {
   font-size: var(--fs-md);
   color: var(--c-ink-2);
   max-width: 36em;
-}
-
-.sample-note {
-  display: flex;
-  gap: var(--s-3);
-  align-items: flex-start;
-  padding: var(--s-3) var(--s-4);
-  border: 1.5px dashed var(--c-brand);
-  border-radius: var(--r-md);
-  background: var(--c-brand-soft);
-  color: var(--c-brand-ink);
-  font-size: var(--fs-sm);
-  max-width: 36em;
-}
-
-.sample-note svg {
-  flex: none;
-  margin-top: 2px;
 }
 
 /* The phone: the app's map, with real glass panels over it */
@@ -614,9 +580,39 @@ thead th {
   box-shadow: var(--sh-1);
 }
 
-/* Footer */
+/* Footer. The extra space at the bottom keeps the floating Day and Night button (bottom right) clear of the last line. */
 .site-footer {
-  padding: var(--s-6) 0 var(--s-7);
+  padding: var(--s-6) 0 calc(var(--s-7) + var(--tap) + var(--s-4));
+}
+
+.footer-end {
+  align-items: flex-start;
+}
+
+@media (min-width: 720px) {
+  .footer-end {
+    align-items: flex-end;
+  }
+}
+
+/* "About the demo data", inside the status section: the plain statement the chips link to */
+.demo-about {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  max-width: 44em;
+  margin-top: var(--s-6);
+  scroll-margin-top: 96px;
+  color: var(--c-ink-2);
+}
+
+.demo-about h3 {
+  color: var(--c-ink);
+  font-size: var(--fs-lg);
+}
+
+.demo-about strong {
+  color: var(--c-ink);
 }
 
 .footer-row {
@@ -625,13 +621,6 @@ thead th {
   justify-content: space-between;
   gap: var(--s-4);
   align-items: flex-end;
-}
-
-/* On the narrowest phones the hero's own button is enough; the header keeps the logo and theme. */
-@media (max-width: 400px) {
-  .header-end .btn-sm {
-    display: none;
-  }
 }
 
 @media (forced-colors: active) {
