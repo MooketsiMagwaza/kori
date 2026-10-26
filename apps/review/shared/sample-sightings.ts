@@ -1,11 +1,14 @@
 /**
- * Sample sightings in the fictional sample reserve. Everything here is sample data: the species
- * counts, the times, the observers ("Sample observer 1" and so on) and the reviews.
+ * Sample sightings. Everything here is sample data: the species, counts, times, observers
+ * ("Sample observer 1" and so on) and reviews, in the fictional sample reserve or on a real map.
  *
  * Times are relative to `now`, rounded down to ten minutes, so the sample always looks recent and
- * stays stable while a page is open. Positions are generated near tracks, because real sightings
- * cluster along roads. The exact point is what an observer's phone recorded; only the observer and
- * reviewers ever see it. Everyone else gets the grid cell (see rules.ts).
+ * stays stable while a page is open. In the sample reserve, positions are generated near tracks,
+ * because real sightings cluster along roads. A real park pack carries its own positions instead
+ * (tools/map-pack/place-sightings.ts): the middle of a 1 km area on real ground near a track,
+ * never on water and kept away from anything named after rhino. The exact point is what an
+ * observer's phone recorded; only the observer and reviewers ever see it. Everyone else gets the
+ * grid cell (see rules.ts).
  */
 
 import type { LonLat } from "./geo.ts";
@@ -34,7 +37,7 @@ export type Sighting = {
   review?: { decidedAt: string; reviewer: string; reason?: string };
 };
 
-type Seed = {
+export type SampleSeed = {
   speciesId: string;
   count: number;
   minutesAgo: number;
@@ -46,8 +49,9 @@ type Seed = {
   reason?: string;
 };
 
-// Hand-written so the sample tells a believable story; positions come from the seeded generator.
-const SEEDS: Seed[] = [
+// Hand-written so the sample tells a believable story; positions come from the seeded generator
+// (sample reserve) or from the park pack (a real map).
+export const SAMPLE_SEEDS: readonly SampleSeed[] = [
   { speciesId: "elephant", count: 14, minutesAgo: 25, status: "pending", observer: 1, photos: 2, notes: "Breeding herd crossing towards the pan. Two small calves." },
   { speciesId: "lion", count: 3, minutesAgo: 40, status: "pending", observer: 2, photos: 1, notes: "Two lionesses and a sub-adult resting under a camelthorn." },
   { speciesId: "wild-dog", count: 9, minutesAgo: 95, status: "approved", observer: 3, photos: 3, notes: "Pack moving fast along the track heading north." },
@@ -85,20 +89,27 @@ function mulberry32(seed: number) {
   };
 }
 
-/** The sample sightings as of `now`. Same input, same output. */
-export function sampleSightings(now: Date = new Date()): Sighting[] {
+/**
+ * The sample sightings as of `now`. Same input, same output. `positions` (one per seed, from a real
+ * park pack) replaces the generated positions in the sample reserve; any other length is ignored.
+ */
+export function sampleSightings(now: Date = new Date(), positions?: readonly LonLat[] | null): Sighting[] {
   const anchor = Math.floor(now.getTime() / 600_000) * 600_000;
   const reserve = sampleReserve();
   const tracks = visibleEdges(reserve, { predicted: false });
   const rand = mulberry32(7_102_026);
   const deg = metersToDegrees(reserve.centre[1]);
+  const placed = positions && positions.length === SAMPLE_SEEDS.length ? positions : null;
 
-  return SEEDS.map((seed, index) => {
+  return SAMPLE_SEEDS.map((seed, index) => {
+    // The same random draws happen either way, so accuracy and reviews do not depend on the map.
     const edge = tracks[Math.floor(rand() * tracks.length)];
     const at = edge.line[1 + Math.floor(rand() * (edge.line.length - 2))];
     const offset = 80 + rand() * 520;
     const angle = rand() * Math.PI * 2;
-    const point: LonLat = [Number((at[0] + Math.cos(angle) * offset * deg.lon).toFixed(6)), Number((at[1] + Math.sin(angle) * offset * deg.lat).toFixed(6))];
+    const point: LonLat = placed
+      ? [placed[index][0], placed[index][1]]
+      : [Number((at[0] + Math.cos(angle) * offset * deg.lon).toFixed(6)), Number((at[1] + Math.sin(angle) * offset * deg.lat).toFixed(6))];
     const seenAt = new Date(anchor - seed.minutesAgo * 60_000).toISOString();
     const rule = ruleFor(seed);
     const decided = seed.status === "approved" || seed.status === "rejected";

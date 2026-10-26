@@ -9,11 +9,16 @@
  * Track statuses in the sample: "verified" (reviewed), "gps" (confirmed by 3 or more synthetic
  * trips), "predicted" (a sample of what an imagery model might suggest, with a confidence level),
  * and "closed" (a patrol track, never shown or routed).
+ *
+ * A real park pack (tools/map-pack) uses the same `Reserve` shape, so routing and guidance work
+ * unchanged. Its edges are OpenStreetMap ways with status "osm", shown as "OSM, not verified"
+ * until GPS trips confirm them; it has no pans or river (water comes from the base map) and no
+ * predicted tracks.
  */
 
 import { lineLengthMeters, metersToDegrees, pointInRing, type LonLat } from "./geo.ts";
 
-export type TrackStatus = "verified" | "gps" | "predicted" | "closed";
+export type TrackStatus = "verified" | "gps" | "osm" | "predicted" | "closed";
 export type Confidence = "high" | "medium" | "low";
 
 export type TrackNode = { id: string; at: LonLat; kind: "junction" | "gate" | "camp"; name?: string };
@@ -30,6 +35,16 @@ export type TrackEdge = {
   /** Month of the imagery a "predicted" edge would come from (sample). */
   imageryMonth?: string;
   lengthMeters: number;
+  /** Where the edge came from; "osm" edges carry the way id and its tags. */
+  source?: "sample" | "osm";
+  osmWayId?: number;
+  highway?: string;
+  surface?: string;
+  tracktype?: string;
+  smoothness?: string;
+  name?: string;
+  /** Set when OSM tells drivers to avoid the way; routing makes it four times as expensive. */
+  caution?: string;
 };
 
 export type Pan = { name: string; ring: LonLat[] };
@@ -47,6 +62,17 @@ export type Reserve = {
   river: LonLat[];
   nodes: TrackNode[];
   edges: TrackEdge[];
+  /** "real" for a park pack built from OpenStreetMap; absent or "sample" for the sample reserve. */
+  kind?: "sample" | "real";
+};
+
+/** Label for a track's status, as the map key and the route sheet say it. */
+export const TRACK_STATUS_LABEL: Record<TrackStatus, string> = {
+  verified: "Verified track",
+  gps: "GPS-confirmed track",
+  osm: "OSM, not verified",
+  predicted: "Predicted, not verified",
+  closed: "Closed",
 };
 
 export const SAMPLE_RESERVE_ID = "sample-reserve";
