@@ -72,7 +72,7 @@ class Cdp {
 
 async function launch() {
   const dir = mkdtempSync(join(tmpdir(), "kori-proof-"));
-  const proc = spawn(EDGE, ["--headless=new", `--remote-debugging-port=${PORT}`, `--user-data-dir=${dir}`, "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--disable-sync", "--disable-background-networking", "--disable-component-update", "--disable-default-apps", "about:blank"], { stdio: "ignore" });
+  const proc = spawn(EDGE, ["--headless=new", `--remote-debugging-port=${PORT}`, `--user-data-dir=${dir}`, "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--disable-sync", "--disable-background-networking", "--disable-component-update", "--disable-default-apps", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "about:blank"], { stdio: "ignore" });
   for (let i = 0; i < 60; i += 1) {
     try {
       const res = await fetch(`http://127.0.0.1:${PORT}/json/version`);
@@ -222,7 +222,15 @@ try {
   const features = await evaluate(`(() => { const m = window.koriMap; if (!m) return null; const count = (layers) => m.queryRenderedFeatures({ layers: layers.filter((l) => m.getLayer(l)) }).length; return { tracks: count(['tracks-osm']), park: count(['base-park']), water: count(['base-water', 'base-river']), labels: count(['label-poi', 'label-place', 'label-water', 'label-river', 'label-road']), pins: document.querySelectorAll('.pin').length, clusters: document.querySelectorAll('.pin-cluster').length, credits: document.querySelector('.map-credits')?.textContent ?? null, chip: !!document.querySelector('.demo-chip'), themeButton: !!document.querySelector('.theme-fab') }; })()`);
   step("offline, the map draws the stored base map and OSM tracks", Boolean(drew && features?.tracks > 0 && features?.park > 0), features ?? {});
   step("the OpenStreetMap credit, the Demo data chip and the theme button are on screen", Boolean(features?.credits?.includes("OpenStreetMap contributors") && features.chip && features.themeButton), { credits: features?.credits });
+  const opening = await evaluate(`(() => { const m = window.koriMap; const n = (ids) => m.queryRenderedFeatures({ layers: ids.filter((l) => m.getLayer(l)) }).map((f) => f.properties.name).filter(Boolean); return { zoom: Math.round(m.getZoom() * 10) / 10, satellite: m.getLayoutProperty('imagery', 'visibility') === 'visible', names: [...new Set(n(['label-park', 'label-poi', 'label-place', 'label-water', 'label-river', 'pack-place-label']))].slice(0, 12), parkEdge: m.queryRenderedFeatures({ layers: ['base-park-edge'] }).length }; })()`);
+  step("satellite with the tracks on top is the default view for a pack with imagery", Boolean(opening?.satellite), opening ?? {});
+  step("place names show at the opening zoom", Boolean(opening?.names?.length), { names: opening?.names, parkEdgeFeatures: opening?.parkEdge });
   await shot("phone-map-day-offline");
+  await evaluate(`document.querySelector('[aria-label="Satellite imagery"]')?.click()`);
+  const plain = await waitFor(`(() => { const m = window.koriMap; return m.getLayoutProperty('imagery', 'visibility') === 'none' && m.areTilesLoaded(); })()`, 15000);
+  step("one tap on the photo button shows the plain map", Boolean(plain));
+  await shot("phone-plain-day-offline");
+  await evaluate(`document.querySelector('[aria-label="Satellite imagery"]')?.click()`);
 
   const sat = await setSatellite(true);
   const satCredit = await evaluate("document.querySelector('.map-credits')?.textContent ?? ''");
