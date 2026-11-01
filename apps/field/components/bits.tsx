@@ -21,7 +21,7 @@ export function SampleNote({ children }: { children?: React.ReactNode }) {
   return (
     <p className="sample-note">
       <Icon name="info" size={20} />
-      <span>{children ?? "Sample data. The sightings, observers and reserve on this screen are invented for the prototype."}</span>
+      <span>{children ?? "Sample data. The sightings, observers and reserve on this screen are invented."}</span>
     </p>
   );
 }
