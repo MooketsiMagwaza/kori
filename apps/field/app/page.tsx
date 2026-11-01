@@ -25,7 +25,7 @@ export default function Home() {
   return (
     <div className="page">
       <div className="hero-card">
-        <p className="faint">Sample reserve (fictional) · prototype</p>
+        <p className="faint">Sample reserve (fictional)</p>
         <h1>What have you seen?</h1>
         <p className="muted">Log it now, even with no signal. It waits on this phone and goes to a reviewer when you are back in range.</p>
         <Link href="/log" className="btn btn-primary btn-block">

@@ -24,15 +24,7 @@ sighting.
 
 ## What it looks like
 
-The map below uses real Sentinel-2 imagery and OpenStreetMap labels over Maun at
-the Okavango Delta gateway. The route is a preview and contains no live wildlife
-locations. Kori's real offline implementation is privately verified with a
-Savuti pack, but that park pack and its screenshots remain off the public web
-pending guidance from the Department of Wildlife and National Parks.
-
-<img src="docs/screens/public-map.webp" alt="Kori map preview showing real Sentinel-2 imagery and OpenStreetMap labels over Maun at the Okavango Delta gateway, with a highlighted route, offline packs, track-based guidance and location privacy" width="100%">
-
-The remaining images are captures of the running prototype in Day colours
+These images are captures of the running prototype in Day colours
 (Night uses the same layout in Apple's flat dark colours). Every person,
 sighting and figure shown in them is sample data, and the app labels it as such.
 
@@ -99,7 +91,7 @@ and evidence, is [`docs/WORK_ORDERS.md`](docs/WORK_ORDERS.md).
 | --- | --- | --- |
 | **Real, runs in the browser** | Logging a sighting into the phone's storage (IndexedDB), with photos redrawn on the phone to strip hidden location data; the offline outbox; downloading the sample park pack and drawing it with MapLibre without tiles; your GPS position on the map; routing along tracks on the phone; QR codes and the scanner; opt-in trip recording on the phone; the review console's queue and audit log (decisions kept in the browser); Day and Night colours. | Lint, typecheck and build pass for all four apps in CI. Clicked through in a browser: pack download, map, logging, the delay rule, QR display, routing. Not tried on a real phone: the service worker, live GPS, camera scanning, photo re-encoding, trip recording. |
 | **Scaffold: code that runs, not yet in use** | The API (accounts, scoped keys, quotas, throttling, audit log, uploads, privacy export and deletion, sighting submission, review, trips, track map, packs, the keyed `/v1` API); migrations to PostGIS; the compose stack; observability (Prometheus, Grafana, Tempo); backup and recovery scripts; release and Kubernetes files; the field app's `HttpStore`. | `pytest`: 93 passed. CI migrates an empty PostGIS 16 database to head and back. CI builds and starts the database and API with compose; `/api/health` reports `healthy`. Monitoring, backups, drills and the rest of the stack have **not** been started. |
-| **Private real-map implementation** | A Savuti offline pack with an OpenStreetMap vector basemap and routing graph plus Sentinel-2 imagery. Satellite-first rendering, attribution, checksum-verified storage, OSM-track routing and a fresh offline reload passed 16 of 16 automated checks. | Kept outside the repository and every deployed build. The pack and its captures stay private pending DWNP guidance; the public visual above uses Maun at the Okavango Delta gateway and shows no live wildlife locations. |
+| **Private real-map implementation** | A Savuti offline pack with an OpenStreetMap vector basemap and routing graph plus Sentinel-2 imagery. Satellite-first rendering, attribution, checksum-verified storage, OSM-track routing and a fresh offline reload passed 16 of 16 automated checks. | Kept outside the repository and every deployed build. The pack and its captures stay private pending DWNP guidance. |
 | **Sample data** | Every sighting not logged by you, every observer ("Sample observer 1" and so on), every review, the invented API keys in the docs, and the built-in fallback reserve, whose tracks are generated and do not match the ground. | Marked "Sample data" where it appears; the map information panel and the Offline and packs page warn that the fallback reserve must not be navigated by. |
 | **Not built yet** | Sign-in in the apps and the apps calling the API; a DWNP-approved public real-park pack; sharing trips and the track map built from many trips; Kori-specific metrics; deployment; human-wildlife conflict reports and camera-trap uploads (proposed); predicted tracks from satellite imagery, which wait on a separate feasibility check. | See the register. |
 
