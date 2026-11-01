@@ -13,11 +13,11 @@ export default function AboutPage() {
         <p className="muted">The rules Kori follows, and what in this prototype is real.</p>
       </div>
 
-      <section id="demo-data" aria-labelledby="demo-h">
-        <h2 id="demo-h">About the demo data</h2>
+      <section id="sample-data" aria-labelledby="sample-data-h">
+        <h2 id="sample-data-h">About the sample data</h2>
         <div className="card">
           <p>
-            Everything you see in this demo is sample data. The reserve, the sightings, the observers and the reviews are invented.
+            The reserve, sightings, observers and reviews shown in the prototype are invented sample data.
           </p>
           <p>
             <strong>The reserve is fictional.</strong> Its tracks and places are generated and do not match the ground at its coordinates. Do not navigate by it.

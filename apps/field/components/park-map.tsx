@@ -23,7 +23,7 @@
  * "Open" button; a numbered cluster zooms in (shared/map-markers.ts, pressOutcome).
  *
  * Chrome over the map is kept small so the map fills the screen: one slim chip at the top while there
- * is no pack, and one slim row at the bottom left (beside the Day and Night button) with a "Demo data"
+ * is no pack, and one slim row at the bottom left (beside the Day and Night button) with a "Sample data"
  * link, the pack size or the map credits, and the (i) that opens the map's information, including the
  * warning that the sample reserve is fictional and must not be navigated by.
  */
@@ -58,7 +58,7 @@ import { canGuide, cellRing, isPublic, sensitivityOf } from "@/shared/rules";
 import type { Sighting } from "@/shared/sample-sightings";
 import { speciesById } from "@/shared/species";
 import { Icon } from "@/shared/icons";
-import { DemoDataChip } from "@/components/bits";
+import { SampleDataChip } from "@/components/bits";
 import { getStore, type PackProgress, type RealPackRecord } from "@/lib/store";
 import { registerPackFile } from "@/lib/pmtiles-setup";
 import { formatBytes, relativeTime, useGeolocation, useNow, useStoreData } from "@/lib/hooks";
@@ -235,7 +235,7 @@ const PLACE_LABEL_ZOOM = 11;
 const NEARBY_METERS = 3_000;
 
 // Frame the whole reserve in the clear space between the chip at the top and the bottom row (the Day and
-// Night button, the scale bar and the "Demo data" row; on phones the map also runs under the dock), so it
+// Night button, the scale bar and the "Sample data" row; on phones the map also runs under the dock), so it
 // is not left low on the screen.
 function framePadding(map: MapLibreMap, top: HTMLElement | null) {
   const side = 32;
@@ -719,7 +719,7 @@ export default function ParkMap({ to }: Props) {
       </div>
 
       <div className="map-foot">
-        <DemoDataChip />
+        <SampleDataChip />
         {real ? (
           // The map's credits, always on screen while a real pack is drawn.
           <span className="map-foot-text map-credits">
@@ -868,7 +868,7 @@ export default function ParkMap({ to }: Props) {
                 {data?.pack ? `Pack ${formatBytes(data.pack.bytes)}, on this phone.` : "No pack is on this phone yet."}
               </p>
               <p className="faint">
-                <Link href="/about#demo-data">About the demo data</Link>. Drawn with MapLibre GL JS.
+                <Link href="/about#sample-data">About the sample data</Link>. Drawn with MapLibre GL JS.
               </p>
             </>
           )}

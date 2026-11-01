@@ -70,30 +70,30 @@ test("the map keeps one slim chip, a button the screenshot tool can find, and th
   assert.ok(!map.includes("Generated tracks that do not match the ground"), "the second notice is gone");
   assert.ok(map.includes("Do not navigate by it"), "the warning is in the (i) panel");
   assert.ok(map.includes("Pack {formatBytes("), "the pack size is in the attribution row");
-  assert.ok(map.includes("<DemoDataChip />"));
+  assert.ok(map.includes("<SampleDataChip />"));
   assert.ok(read("apps/field/app/offline/page.tsx").includes("Do not navigate by it"), "the warning is on the Offline and packs page");
 });
 
-test("the landing hero has no sample-data banner, and the demo-data statement is on the status section", () => {
+test("the landing hero has no sample-data banner, and the sample-data statement is on the status section", () => {
   const landing = read("apps/landing/app/page.tsx");
   assert.ok(!landing.includes("A working prototype with sample data"));
   assert.ok(!landing.includes('className="sample-note"'));
-  assert.ok(landing.includes('href="#demo-data"'), "the footer chip links to the statement");
-  const statement = landing.slice(landing.indexOf('id="demo-data"'));
-  assert.ok(statement.includes("About the demo data"));
+  assert.ok(landing.includes('href="#sample-data"'), "the footer chip links to the statement");
+  const statement = landing.slice(landing.indexOf('id="sample-data"'));
+  assert.ok(statement.includes("About the sample data"));
   assert.match(statement, /fictional/);
   assert.match(statement, /not deployed and the apps do not call it yet/);
   assert.match(statement, /must not be used to navigate/);
 });
 
-test("the field app's About page states plainly what the demo data is", () => {
+test("the field app's About page states plainly what the sample data is", () => {
   const about = read("apps/field/app/about/page.tsx");
-  const statement = about.slice(about.indexOf('id="demo-data"'), about.indexOf("Animals come first"));
-  assert.ok(statement.includes("About the demo data"));
+  const statement = about.slice(about.indexOf('id="sample-data"'), about.indexOf("Animals come first"));
+  assert.ok(statement.includes("About the sample data"));
   for (const word of ["reserve", "sightings", "observers", "reviews", "invented", "fictional", "do not match the ground", "Do not navigate by it", "not deployed and the apps do not call it yet"]) {
     assert.ok(statement.includes(word), `the statement says "${word}"`);
   }
   // Sighting pages carry the chip that links to it.
-  assert.ok(read("apps/field/app/sighting/page.tsx").includes("<DemoDataChip />"));
-  assert.ok(read("apps/field/components/bits.tsx").includes('href="/about#demo-data"'));
+  assert.ok(read("apps/field/app/sighting/page.tsx").includes("<SampleDataChip />"));
+  assert.ok(read("apps/field/components/bits.tsx").includes('href="/about#sample-data"'));
 });

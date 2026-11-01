@@ -9,7 +9,7 @@ import { formatDistance } from "@/shared/geo";
 import { Icon } from "@/shared/icons";
 import { CellThumb } from "@/components/cell-thumb";
 import { QrShare } from "@/components/qr-share";
-import { DemoDataChip, SensitiveChip, SourceChip, StatusChip } from "@/components/bits";
+import { SampleDataChip, SensitiveChip, SourceChip, StatusChip } from "@/components/bits";
 import { clockTime, relativeTime, useNow, useStoreData } from "@/lib/hooks";
 import { getStore } from "@/lib/store";
 
@@ -100,7 +100,7 @@ function Detail() {
           <SourceChip source={sighting.source} />
           <StatusChip status={sighting.status} />
           {sensitive ? <SensitiveChip /> : null}
-          <DemoDataChip />
+          <SampleDataChip />
         </div>
       </div>
 

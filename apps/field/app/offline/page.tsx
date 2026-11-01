@@ -267,7 +267,7 @@ export default function OfflinePage() {
           <Icon name="alert" size={20} />
           <span>
             <strong>The sample reserve is fictional.</strong> Its tracks do not match the ground. Do not navigate by it.{" "}
-            <Link href="/about#demo-data">About the demo data</Link>
+            <Link href="/about#sample-data">About the sample data</Link>
           </span>
         </p>
         {packError ? <p className="notice notice-bad">{packError}</p> : null}

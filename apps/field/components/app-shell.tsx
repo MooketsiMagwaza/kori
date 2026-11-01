@@ -36,11 +36,17 @@ function NavLinks() {
   return (
     <>
       {LINKS.map((link) => (
-        <Link key={link.href} href={link.href} className={`nav-item${link.log ? " nav-log" : ""}`} aria-current={isCurrent(pathname, link.href) ? "page" : undefined}>
+        <Link
+          key={link.href}
+          href={link.href}
+          className={`nav-item${link.log ? " nav-log" : ""}`}
+          aria-label={link.log ? "Log a sighting" : undefined}
+          aria-current={isCurrent(pathname, link.href) ? "page" : undefined}
+        >
           <span className="nav-icon">
             <Icon name={link.icon} size={link.log ? 28 : 24} />
           </span>
-          <span>{link.label}</span>
+          <span className="nav-label">{link.label}</span>
         </Link>
       ))}
     </>
