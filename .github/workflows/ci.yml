@@ -17,8 +17,8 @@ jobs:
     name: Name gate, shared sync, contrast, tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: node scripts/check-names.mjs
@@ -46,8 +46,8 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg://kori:kori@localhost:5432/kori
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -76,7 +76,7 @@ jobs:
     name: Compose file is valid
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker compose config --quiet
       - run: docker compose --profile identity --profile recovery --profile drill config --quiet
 
@@ -84,7 +84,7 @@ jobs:
     name: Compose smoke test (database and API start and report healthy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build and start db and api
         run: docker compose up -d --build --wait --wait-timeout 300 db api
       - name: Call the health endpoint
@@ -109,8 +109,8 @@ jobs:
       run:
         working-directory: apps/${{ matrix.app }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
