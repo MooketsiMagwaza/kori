@@ -1,6 +1,6 @@
 # Backup runner for the Compose "recovery" profile: logical dumps, base backups, encryption,
 # off-host copy, retention, and verification. PostgreSQL 16 tools match the PostGIS 16 primary.
-FROM postgres:16-alpine
+FROM postgres:18-alpine
 
 RUN apk add --no-cache bash rclone openssl tzdata coreutils
 
