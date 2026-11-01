@@ -20,7 +20,7 @@
 
   /* The Day and Night button floats at the bottom left. On a phone it sits just above the dock, in the
      row of the map's own buttons (which are at the bottom right); --fab-clear is how far the map's
-     bottom-left items (scale bar, "Demo data" row) are pushed in so they sit beside it, never under it. */
+     bottom-left items (scale bar, "Sample data" row) are pushed in so they sit beside it, never under it. */
   --fab-bottom: calc(var(--dock-space) - var(--s-3));
   --fab-left: max(var(--s-3), env(safe-area-inset-left));
   --fab-clear: calc(var(--fab-left) + var(--tap) + var(--s-2));
@@ -271,6 +271,11 @@ a {
   box-shadow: 0 0 0 3px var(--c-accent-soft);
 }
 
+/* The plus is the label on the phone dock. Keep the text in the desktop rail. */
+.bottom-nav .nav-item.nav-log .nav-label {
+  display: none;
+}
+
 .rail {
   display: none;
 }
@@ -378,8 +383,8 @@ a {
   bottom: var(--fab-bottom);
 }
 
-/* The link target of "Demo data": land below the floating top bar, not under it */
-#demo-data {
+/* The link target of "Sample data": land below the floating top bar, not under it */
+#sample-data {
   scroll-margin-top: calc(var(--topbar-h) + var(--s-3));
 }
 
@@ -981,7 +986,7 @@ textarea {
   --map-bottom: calc(var(--dock-space) + var(--s-1));
   /* Where the bottom of the Day and Night button is, measured inside the map (on a phone the map runs
      under the dock, to the bottom of the screen; on wide screens it is a framed panel 12px above it).
-     The "Demo data" row sits beside the button, on its centre line; sheets sit above it. */
+     The "Sample data" row sits beside the button, on its centre line; sheets sit above it. */
   --fab-in-map: var(--fab-bottom);
   --foot-h: 36px;
   --foot-bottom: calc(var(--fab-in-map) + (var(--tap) - var(--foot-h)) / 2);
@@ -1107,7 +1112,7 @@ textarea {
   cursor: not-allowed;
 }
 
-/* The attribution row, bottom left, beside the Day and Night button: "Demo data", the pack size once
+/* The attribution row, bottom left, beside the Day and Night button: "Sample data", the pack size once
    there is one, and the (i) that opens the map's information. One slim glass pill. */
 .map-foot {
   position: absolute;
@@ -1127,7 +1132,7 @@ textarea {
   box-shadow: var(--sh-1);
 }
 
-.map-foot .demo-chip {
+.map-foot .sample-chip {
   flex: none;
   min-height: 28px;
 }
@@ -1143,7 +1148,7 @@ textarea {
   white-space: nowrap;
 }
 
-/* A real pack's credits are never cut short: they take their own line under "Demo data" and the (i),
+/* A real pack's credits are never cut short: they take their own line under "Sample data" and the (i),
    and wrap if the pill is narrow. The pill grows, so the sheets above it move up with it. */
 .map-page:has(.map-credits) {
   --foot-h: 52px;
@@ -1230,7 +1235,7 @@ textarea {
   position: absolute;
   left: var(--s-3);
   right: 84px;
-  /* Above the Day and Night button, the "Demo data" row and the scale bar, never over them */
+  /* Above the Day and Night button, the "Sample data" row and the scale bar, never over them */
   bottom: var(--sheet-bottom);
   z-index: 5;
   max-width: 460px;
@@ -1555,7 +1560,7 @@ textarea {
 
 /* MapLibre's scale bar, on the same glass. MapLibre's stylesheet loads after this one, so these are
    scoped to the map to outrank it. The scale bar sits in the bottom-left corner, pushed in so it
-   clears the Day and Night button, and above the "Demo data" row. */
+   clears the Day and Night button, and above the "Sample data" row. */
 .map-canvas .maplibregl-ctrl.maplibregl-ctrl-scale {
   border-color: var(--c-ink-2);
   background: var(--c-glass);
@@ -1570,7 +1575,7 @@ textarea {
   max-width: calc(100% - var(--fab-clear) - 76px);
 }
 
-/* (The sheets' --sheet-bottom leaves --scale-h for the scale bar above the "Demo data" row.) */
+/* (The sheets' --sheet-bottom leaves --scale-h for the scale bar above the "Sample data" row.) */
 
 @media (max-width: 359px) {
   .map-controls {

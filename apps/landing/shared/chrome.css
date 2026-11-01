@@ -1,4 +1,4 @@
-/* Shared pieces of the apps' chrome: the floating Day and Night button and the "Demo data" chip.
+/* Shared pieces of the apps' chrome: the floating Day and Night button and the "Sample data" chip.
  *
  * Edit this file only; `node scripts/sync-shared.mjs` copies it into each app, next to tokens.css.
  * Colours, radii and motion come from the tokens, and nothing here is hard-coded.
@@ -67,10 +67,10 @@
   }
 }
 
-/* The "Demo data" chip: neutral and small, a link to the plain statement of what is sample data.
+/* The "Sample data" chip: neutral and small, a link to the plain statement of what is sample data.
  * It is deliberately not a banner: no icon, no colour of its own, no dashed edge. The extended hit
  * area (the ::after) keeps the tap target at 48px high while the chip itself stays slim. */
-.demo-chip {
+.sample-chip {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -86,13 +86,13 @@
   text-decoration: none;
 }
 
-.demo-chip::after {
+.sample-chip::after {
   content: "";
   position: absolute;
   inset: -10px 0;
 }
 
-.demo-chip:hover {
+.sample-chip:hover {
   background: var(--c-accent-soft);
   color: var(--c-accent-text);
 }

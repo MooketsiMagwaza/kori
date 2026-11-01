@@ -20,7 +20,7 @@ function localInputValue(date: Date) {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
-type Where = { point: LonLat; accuracy?: number; how: "gps" | "demo" };
+type Where = { point: LonLat; accuracy?: number; how: "gps" | "sample" };
 
 export default function LogPage() {
   const router = useRouter();
@@ -68,7 +68,7 @@ export default function LogPage() {
         setLocating(false);
       },
       (err) => {
-        setGeoError(err.code === err.PERMISSION_DENIED ? "Location permission is off. Turn it on for this site, or use a demo spot." : "No GPS fix yet. Try again in the open, or use a demo spot.");
+        setGeoError(err.code === err.PERMISSION_DENIED ? "Location permission is off. Turn it on for this site, or use a sample location." : "No GPS fix yet. Try again in the open, or use a sample location.");
         setLocating(false);
       },
       { enableHighAccuracy: true, timeout: 45_000, maximumAge: 10_000 },
@@ -80,7 +80,7 @@ export default function LogPage() {
     const tracks = visibleEdges(activePack?.data ?? sampleReserve(), { predicted: false });
     const edge = tracks[Math.floor(Math.random() * tracks.length)];
     const at = edge.line[Math.floor(edge.line.length / 2)];
-    setWhere({ point: [at[0] + (Math.random() - 0.5) * 0.004, at[1] + (Math.random() - 0.5) * 0.004], accuracy: 10, how: "demo" });
+    setWhere({ point: [at[0] + (Math.random() - 0.5) * 0.004, at[1] + (Math.random() - 0.5) * 0.004], accuracy: 10, how: "sample" });
   }
 
   async function addPhotos(files: FileList | null) {
@@ -173,14 +173,14 @@ export default function LogPage() {
               <Icon name="locate" size={20} /> {locating ? "Finding you…" : "Use my GPS"}
             </button>
             <button type="button" className="btn" onClick={pickDemoSpot}>
-              <Icon name="pin" size={20} /> {realPlace ? `Demo spot beside a track at ${realPlace}` : "Demo spot in the sample reserve"}
+              <Icon name="pin" size={20} /> {realPlace ? `Sample location beside a track at ${realPlace}` : "Sample location in the reserve"}
             </button>
           </div>
           {geoError ? <p className="notice notice-warn">{geoError}</p> : null}
           {where ? (
             <div className="well">
               <p>
-                <strong>{where.how === "gps" ? "Your GPS position" : realPlace ? `Demo spot (${realPlace}, a real place; the sighting is yours, saved on this phone)` : "Demo spot (sample reserve, fictional)"}</strong>
+                <strong>{where.how === "gps" ? "Your GPS position" : realPlace ? `Sample location (${realPlace}; saved only on this phone)` : "Sample location (fictional reserve)"}</strong>
                 {where.accuracy ? <span className="muted"> · within {formatDistance(where.accuracy)}</span> : null}
               </p>
               {cell ? (

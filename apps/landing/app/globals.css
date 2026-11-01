@@ -595,8 +595,8 @@ thead th {
   }
 }
 
-/* "About the demo data", inside the status section: the plain statement the chips link to */
-.demo-about {
+/* "About the sample data", inside the status section: the plain statement the chips link to */
+.sample-about {
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
@@ -606,12 +606,12 @@ thead th {
   color: var(--c-ink-2);
 }
 
-.demo-about h3 {
+.sample-about h3 {
   color: var(--c-ink);
   font-size: var(--fs-lg);
 }
 
-.demo-about strong {
+.sample-about strong {
   color: var(--c-ink);
 }
 

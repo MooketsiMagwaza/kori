@@ -5,14 +5,14 @@ import type { SightingStatus } from "@/shared/rules";
 import { Icon } from "@/shared/icons";
 
 /**
- * A small neutral chip that says "Demo data" and links to the plain statement of what is sample data
+ * A small neutral chip that says "Sample data" and links to the plain statement of what is sample data
  * (the About page). It replaces the dashed notices on the map and the sighting page: the label is
  * always there and one tap from the full explanation, but it does not take space or shout.
  */
-export function DemoDataChip() {
+export function SampleDataChip() {
   return (
-    <Link href="/about#demo-data" className="demo-chip">
-      Demo data
+    <Link href="/about#sample-data" className="sample-chip">
+      Sample data
     </Link>
   );
 }

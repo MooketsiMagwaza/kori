@@ -269,11 +269,10 @@ export default function Home() {
               </table>
             </div>
             {FIELD_APP_URL === "#status" ? <p className="faint">The field app link appears here once it is deployed.</p> : null}
-            <div id="demo-data" className="demo-about">
-              <h3>About the demo data</h3>
+            <div id="sample-data" className="sample-about">
+              <h3>About the sample data</h3>
               <p>
-                Everything you see in this demo is sample data. The reserve, the sightings, the observers and the reviews are invented, and the drawings on this page are made from the
-                same invented data.
+                The reserve, sightings, observers and reviews are sample data. The drawings on this page use the same invented data.
               </p>
               <p>
                 <strong>The reserve is fictional.</strong> Its tracks and places are generated and do not match the ground at its coordinates, so it must not be used to navigate.
@@ -294,8 +293,8 @@ export default function Home() {
             <p className="faint">Named after the kori bustard, kgori in Setswana, Botswana&apos;s national bird.</p>
           </div>
           <div className="stack-sm footer-end">
-            <a className="demo-chip" href="#demo-data">
-              Demo data
+            <a className="sample-chip" href="#sample-data">
+              Sample data
             </a>
             <p className="faint">© 2026 Mooketsi Vincent Magwaza. All rights reserved.</p>
           </div>
