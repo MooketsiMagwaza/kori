@@ -82,18 +82,45 @@ On a phone:
 
 An early prototype. The web apps run in the browser with **sample data**. The
 backend is built and tested and starts with PostGIS in CI, but it is not
-deployed or connected to the apps yet. The register of work, with honest states
-and evidence, is [`docs/WORK_ORDERS.md`](docs/WORK_ORDERS.md).
+deployed or connected to the apps yet. The register of every instruction and
+every piece of work, each with its dated evidence, is
+[`docs/WORK_ORDERS.md`](docs/WORK_ORDERS.md); the tables below summarise it.
 
-### Real, scaffold, sample, not built
+## What works and what remains
 
-| | What | How it was checked |
-| --- | --- | --- |
-| **Real, runs in the browser** | Logging a sighting into the phone's storage (IndexedDB), with photos redrawn on the phone to strip hidden location data; the offline outbox; downloading the sample park pack and drawing it with MapLibre without tiles; your GPS position on the map; routing along tracks on the phone; QR codes and the scanner; opt-in trip recording on the phone; the review console's queue and audit log (decisions kept in the browser); Day and Night colours. | Lint, typecheck and build pass for all four apps in CI. Clicked through in a browser: pack download, map, logging, the delay rule, QR display, routing. Not tried on a real phone: the service worker, live GPS, camera scanning, photo re-encoding, trip recording. |
-| **Scaffold: code that runs, not yet in use** | The API (accounts, scoped keys, quotas, throttling, audit log, uploads, privacy export and deletion, sighting submission, review, trips, track map, packs, the keyed `/v1` API); migrations to PostGIS; the compose stack; observability (Prometheus, Grafana, Tempo); backup and recovery scripts; release and Kubernetes files; the field app's `HttpStore`. | `pytest`: 93 passed. CI migrates an empty PostGIS 16 database to head and back. CI builds and starts the database and API with compose; `/api/health` reports `healthy`. Monitoring, backups, drills and the rest of the stack have **not** been started. |
-| **Private real-map implementation** | A Savuti offline pack with an OpenStreetMap vector basemap and routing graph plus Sentinel-2 imagery. Satellite-first rendering, attribution, checksum-verified storage, OSM-track routing and a fresh offline reload passed 16 of 16 automated checks. | Kept outside the repository and every deployed build. The pack and its captures stay private pending DWNP guidance. |
-| **Sample data** | Every sighting not logged by you, every observer ("Sample observer 1" and so on), every review, the invented API keys in the docs, and the built-in fallback reserve, whose tracks are generated and do not match the ground. | Marked "Sample data" where it appears; the map information panel and the Offline and packs page warn that the fallback reserve must not be navigated by. |
-| **Not built yet** | Sign-in in the apps and the apps calling the API; a DWNP-approved public real-park pack; sharing trips and the track map built from many trips; Kori-specific metrics; deployment; human-wildlife conflict reports and camera-trap uploads (proposed); predicted tracks from satellite imagery, which wait on a separate feasibility check. | See the register. |
+| Area | State |
+| --- | --- |
+| Logging a sighting (species, time, photos, a coarse location) into the phone's storage (IndexedDB), with an offline outbox | Works in the browser |
+| Photos redrawn on the phone to strip hidden location data before they are stored | Works in the browser |
+| Downloading the sample park pack and drawing it with MapLibre, with no network tiles | Works in the browser: the pack downloads (18 KB), the map draws it, your GPS position shows on it |
+| Routing to a sighting along the pack's tracks only | Works over the sample graph, covered by tests; the off-route warning has not been tried with a moving GPS fix on a real phone |
+| QR share and scan | Works in the browser: a sighting past its delay shows a QR code, and the scanner (`BarcodeDetector`, with `jsQR` as the fallback) decodes it. **Not yet tried** with a real camera on a real phone |
+| Opt-in trip recording and the aggregated track map | **Not started** |
+| Review console: queue, checks, approve or reject, species sensitivity, audit log | The three pages build and return 200 with the sample-data notice. Approving and rejecting have **not** been clicked through in a browser; there is no reviewer sign-in yet |
+| Landing site and API docs | Build and pass lint, type-check and `next build` in CI. The API docs are generated from the service's own OpenAPI document but marked draft, because the API they describe is not deployed |
+| Day and Night colours | Both pass a computed contrast check (148 of 148 pairs, AA or better, including with reduced transparency). **Not yet tried** with a screen reader |
+| Service worker (the app shell available offline) | Registered in code. The headless browser used for checks refused to register it, so it is **unverified** |
+| Sign-in, accounts | **Not built.** The apps run with sample data and no account system |
+| Data storage | This phone's IndexedDB only, until the apps are connected to the API |
+
+## The backend: real and scaffold
+
+| Part | State |
+| --- | --- |
+| API service (accounts, scoped keys and quotas, throttling, audit log, uploads, review, trips, track map, packs, the keyed `/v1` endpoints) | **Tested**: `ruff` passes; `pytest`: 93 passed |
+| Migrations | **Tested in CI**: an empty PostGIS 16 database migrates to head, the species seed checks out (20 species, 3 sensitive), and the downgrade to base runs |
+| Compose smoke test (database and API) | **Runs in CI**: builds and starts the database and API, which report `healthy` |
+| Security workflow (Trivy, `npm audit`, `pip-audit`) | **Run once, triaged**: passed; the run caught a critical Next.js advisory, fixed by upgrading to 16.4.3 across all four apps |
+| Full local stack (`docker compose up`, every service, including the web apps and monitoring) | **Blocked**: the Docker daemon was not running on the build machine. Only the database and API have been started together, and only in CI |
+| Observability: Prometheus, Grafana, Tempo, OpenTelemetry | **Configuration**: wired into the API; never started outside CI; no alert rules |
+| Backups and a restore drill | **Not started**: waits on the full stack running once |
+| The apps calling the API | **Not started**: `HttpStore` is a scaffold behind a feature flag and has not been run against the API, so the apps keep using the data already on the device |
+| Real park pack (Savuti, private) | **Built and verified privately**: an OpenStreetMap vector base map, a routing graph, and checksum-verified Sentinel-2 imagery. 16 of 16 offline checks passed in a headless browser with the network cut. Kept out of the repository and every deployed build pending wildlife-authority guidance |
+| Staging and production | **None** |
+
+Every sighting not logged by you, every observer ("Sample observer 1" and so
+on), every review, and the invented API keys in the docs are sample data,
+marked as such where they appear.
 
 ## Safety and privacy
 
@@ -124,6 +151,37 @@ identical. Full rules: [`docs/SAFETY_AND_PRIVACY.md`](docs/SAFETY_AND_PRIVACY.md
 How the parts fit: [`ARCHITECTURE.md`](ARCHITECTURE.md). Security:
 [`SECURITY.md`](SECURITY.md). Conventions: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
+## How it is built
+
+- **Four Next.js apps, one shared folder.** `apps/field`, `apps/landing`,
+  `apps/review` and `apps/api-docs` each deploy on their own, one Vercel
+  project per app. `shared/` holds the tokens, mark, species list, publication
+  rules, the sample reserve, routing and share codes; `scripts/sync-shared.mjs`
+  copies it into each app, and CI fails if a copy drifts.
+- **A data layer behind an interface** (`KoriStore`, [ADR 0002](docs/adr/0002-indexeddb-behind-a-store-interface.md)).
+  `LocalStore` is the default and writes to IndexedDB; `HttpStore` is a
+  scaffold behind `NEXT_PUBLIC_KORI_DATA_SOURCE=http` that has not been run
+  against the API.
+- **The publication rules live in two places, kept identical.** The 1 km and
+  10 km cell sizes, the 1 hour and 7 day delays, and the no-guidance rule for
+  sensitive species are implemented once in `shared/rules.ts` for the browser
+  and once in `api/app/services/publication.py` for the server; a test
+  computes the same grid cells with both. The species list is duplicated the
+  same way and compared row by row.
+- **Contrast is computed, not estimated.** `scripts/check-contrast.mjs`
+  composites every translucent surface over the washes and the map and
+  measures each pair in Day, Night and with reduced transparency; the current
+  build passes 148 of 148 pairs at AA or better, and CI runs it on every
+  change.
+- **Backend** (`api/`): a FastAPI and SQLAlchemy service with Alembic
+  migrations, a PostGIS database, a scheduler for trip expiry and cleanup, and
+  keyed `/v1` endpoints for researchers and lodges.
+- **Docker** (`compose.yaml`, `observability/`, `deploy/`): a local stack with
+  the database, API, scheduler and monitoring, plus release and Kubernetes
+  scaffolds for later.
+- **Decisions** are recorded in [docs/adr](docs/adr/README.md); security in
+  [SECURITY.md](SECURITY.md); how to contribute in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Run it
 
 Node 22.18 or later; Python 3.12 or later; Docker for the stack.
@@ -147,6 +205,29 @@ docker compose config --quiet          # the stack definition is valid
 
 The web apps deploy to Vercel, one project per app; the owner's steps are in
 [`docs/DEPLOY.md`](docs/DEPLOY.md). Nothing is deployed yet.
+
+## Dependencies
+
+| Package | Why | Licence |
+| --- | --- | --- |
+| next, react, react-dom | The interface, in all four apps | MIT |
+| maplibre-gl | Drawing the offline map | BSD-3-Clause |
+| pmtiles | Reading a downloaded map pack with no tile server | BSD-3-Clause |
+| idb | A small Promise wrapper over IndexedDB | ISC |
+| qrcode | Drawing the QR codes sightings are shared with | MIT |
+| jsqr | Decoding a QR code when the browser has no `BarcodeDetector` | Apache-2.0 |
+| @fontsource/noto-sans, @fontsource/zilla-slab | Self-hosted display and body typefaces | OFL-1.1 |
+| fastapi | The API framework | MIT |
+| sqlalchemy, alembic, geoalchemy2 | Models, migrations and PostGIS geometry | MIT |
+| psycopg | The PostgreSQL driver | LGPL-3.0 |
+| pyjwt | API key and session tokens | MIT |
+| pydantic-settings | Typed configuration | MIT |
+| uvicorn, httpx | The ASGI server and the HTTP client used by the scheduler | BSD-3-Clause |
+| prometheus-client, opentelemetry-\* | Metrics and tracing | Apache-2.0 |
+
+Development only: ESLint, TypeScript and the Node test runner per app;
+`pytest` and `ruff` for the API. The full, versioned lists are each app's
+`package.json` and [`api/pyproject.toml`](api/pyproject.toml).
 
 ## Where the code came from
 
